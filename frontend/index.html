@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bússola de Processos — Login</title>
+  <link rel="stylesheet" href="assets/css/estilo.css">
+</head>
+<body class="tela-login">
+
+  <main class="cartao-login">
+    <h1 class="cartao-login__titulo">🧭 Bússola de Processos</h1>
+    <p class="cartao-login__subtitulo">Acesse com sua conta institucional</p>
+
+    <div id="mensagemErro" class="mensagem-erro" role="alert"></div>
+
+    <form id="formLogin" novalidate>
+      <div class="campo">
+        <label for="campoEmail">E-mail</label>
+        <input type="email" id="campoEmail" name="email" autocomplete="username" required>
+      </div>
+
+      <div class="campo">
+        <label for="campoSenha">Senha</label>
+        <input type="password" id="campoSenha" name="senha" autocomplete="current-password" required>
+      </div>
+
+      <button type="submit" class="botao-primario" id="botaoEntrar">Entrar</button>
+    </form>
+  </main>
+
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/login.js"></script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+# Credenciais do clasp (login do Google) — nunca versionar
+.clasprc.json
+backend/.clasprc.json
+
+# Config real do clasp gerada por `clasp create`/`clasp clone`
+# (contém o scriptId do projeto Apps Script de cada ambiente).
+# Use backend/.clasp.json.example como modelo.
+backend/.clasp.json
+
+# Node (caso alguma ferramenta de apoio use npm/clasp local)
+node_modules/
+npm-debug.log*
+
+# Sistema operacional / editor
+.DS_Store
+Thumbs.db
+.vscode/
+*.log

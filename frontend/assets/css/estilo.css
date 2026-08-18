@@ -1,0 +1,191 @@
+/*
+ * Bússola de Processos — estilo base.
+ * Layout simples, sem framework, reaproveitado por todas as telas.
+ */
+
+:root {
+  --cor-primaria: #1e3a5f;
+  --cor-primaria-clara: #2c5282;
+  --cor-fundo: #f4f6f8;
+  --cor-cartao: #ffffff;
+  --cor-texto: #1a202c;
+  --cor-texto-suave: #4a5568;
+  --cor-borda: #d9dfe4;
+  --cor-erro: #c53030;
+  --cor-erro-fundo: #fdecea;
+  --cor-sucesso: #276749;
+  --raio: 8px;
+  --sombra: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --fonte: 'Segoe UI', Tahoma, Verdana, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--fonte);
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Cabeçalho padrão das telas internas */
+.cabecalho {
+  background: var(--cor-primaria);
+  color: #fff;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--sombra);
+}
+
+.cabecalho__marca {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.cabecalho__usuario {
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.botao-sair {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  color: #fff;
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--raio);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.botao-sair:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Container central genérico */
+.conteudo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+/* Tela de login */
+.tela-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--cor-primaria) 0%, var(--cor-primaria-clara) 100%);
+  padding: 1rem;
+}
+
+.cartao-login {
+  background: var(--cor-cartao);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  padding: 2.5rem 2rem;
+  width: 100%;
+  max-width: 380px;
+}
+
+.cartao-login__titulo {
+  text-align: center;
+  margin: 0 0 0.25rem;
+  font-size: 1.4rem;
+  color: var(--cor-primaria);
+}
+
+.cartao-login__subtitulo {
+  text-align: center;
+  margin: 0 0 1.75rem;
+  color: var(--cor-texto-suave);
+  font-size: 0.9rem;
+}
+
+.campo {
+  margin-bottom: 1.1rem;
+}
+
+.campo label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--cor-texto-suave);
+}
+
+.campo input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.campo input:focus {
+  outline: none;
+  border-color: var(--cor-primaria-clara);
+  box-shadow: 0 0 0 3px rgba(44, 82, 130, 0.15);
+}
+
+.botao-primario {
+  width: 100%;
+  padding: 0.7rem;
+  background: var(--cor-primaria);
+  color: #fff;
+  border: none;
+  border-radius: var(--raio);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.botao-primario:hover {
+  background: var(--cor-primaria-clara);
+}
+
+.botao-primario:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mensagem-erro {
+  display: none;
+  background: var(--cor-erro-fundo);
+  color: var(--cor-erro);
+  border-radius: var(--raio);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.mensagem-erro.visivel {
+  display: block;
+}
+
+.rodape {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--cor-texto-suave);
+  padding: 1rem;
+}

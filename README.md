@@ -1,2 +1,170 @@
-# -Bússola-de-Processos
-Ferramenta interna que analisa documentos de processos administrativos (Termos Aditivos, Termos de Compromisso, Restituição de Déficit Financeiro) e indica objetivo, histórico e próximo passo — por análise de padrões, sem IA generativa.
+# Bússola de Processos
+
+Aplicação web interna para analisar documentos de processos administrativos
+(Termos Aditivos, Termos de Compromisso, Restituição de Déficit Financeiro)
+por **análise de padrões/regras** (sem IA generativa) e devolver o objetivo,
+o histórico e o próximo passo do processo.
+
+## Arquitetura
+
+| Camada              | Tecnologia                                                        |
+|----------------------|--------------------------------------------------------------------|
+| Frontend             | HTML/CSS/JS puro, publicado como site estático no GitHub Pages     |
+| Backend              | Google Apps Script vinculado a uma planilha, exposto como Web App  |
+| Banco de dados        | Google Sheets                                                      |
+| Armazenamento de arquivos | Google Drive                                                  |
+
+O frontend **nunca** acessa Sheets ou Drive diretamente. Toda leitura e
+escrita passa pelo Web App do Apps Script (`doGet`/`doPost` em
+[backend/Principal.gs](backend/Principal.gs)), que é o único componente com
+permissão sobre a planilha e o Drive.
+
+```
+/frontend   → site estático (GitHub Pages)
+/backend    → projeto Google Apps Script (gerenciado via clasp)
+```
+
+## Estrutura do repositório
+
+```
+frontend/
+  index.html               tela de login
+  assets/
+    css/estilo.css          estilo base reaproveitado pelas telas
+    js/config.js             APPS_SCRIPT_URL e constantes globais
+    js/api.js                 chamarBackend() — única porta de saída para o backend
+    js/login.js                lógica da tela de login (stub nesta etapa)
+    img/                       (vazio por enquanto)
+
+backend/
+  appsscript.json           manifest do Apps Script (timezone America/Fortaleza)
+  .clasp.json.example       modelo de config do clasp (copiar para .clasp.json)
+  Principal.gs               doGet / doPost — pontos de entrada do Web App
+  Router.gs                   despacha cada `action` recebida para a função certa
+  Auth.gs                     autenticação e validação de sessão (stub)
+  Planilha.gs                  acesso ao Google Sheets (stub)
+  Arquivo.gs                    acesso ao Google Drive (stub)
+  Utilitarios.gs                 funções auxiliares (stub)
+
+README.md
+.gitignore
+```
+
+Nesta etapa inicial não há regra de negócio implementada — só a estrutura,
+o layout base e uma tela de login que ainda não autentica ninguém.
+
+## Rodando o frontend localmente
+
+O frontend é 100% estático, sem build. Basta servir a pasta `frontend/`:
+
+```bash
+cd frontend
+python -m http.server 8000
+```
+
+Depois abra `http://localhost:8000` no navegador. (Abrir o `index.html`
+direto com duplo clique também funciona para conferir o layout, mas alguns
+navegadores restringem `fetch` em páginas abertas via `file://` — prefira
+sempre um servidor local, mesmo simples como o acima.)
+
+Se preferir Node em vez de Python:
+
+```bash
+cd frontend
+npx serve .
+```
+
+Antes do backend estar publicado, `APPS_SCRIPT_URL` em
+[frontend/assets/js/config.js](frontend/assets/js/config.js) fica vazia e
+qualquer chamada ao backend falha com um erro explícito — isso é esperado.
+
+## Publicando no GitHub Pages
+
+1. Suba o repositório para o GitHub (branch `main`).
+2. Em **Settings → Pages**, configure:
+   - **Source**: `Deploy from a branch`
+   - **Branch**: `main`, pasta **`/frontend`**
+3. Salve. O GitHub publica em alguns minutos em
+   `https://<seu-usuario>.github.io/<nome-do-repo>/`.
+4. Sempre que `APPS_SCRIPT_URL` mudar (novo deploy do backend), atualize
+   [frontend/assets/js/config.js](frontend/assets/js/config.js) e faça
+   commit/push — o Pages republica automaticamente.
+
+> Se o repositório for privado, GitHub Pages exige plano pago do GitHub
+> para publicar. Caso não tenha, deixe o repositório público (o frontend
+> não deve conter nenhuma credencial — só HTML/CSS/JS público).
+
+## Roteiro manual (fora do Claude Code)
+
+Estas etapas exigem login interativo na sua conta Google e não podem ser
+automatizadas por aqui. Faça nesta ordem:
+
+### 1. Criar a planilha Google Sheets
+
+- Crie uma planilha nova no Google Drive (ex.: "Bússola de Processos — Dados").
+- Defina as abas que o backend vai usar (ex.: `Usuarios`, `Processos`,
+  `Historico`) — a estrutura exata de colunas fica para uma etapa seguinte,
+  quando a lógica de negócio for implementada.
+- Guarde o ID da planilha (está na URL, entre `/d/` e `/edit`).
+
+### 2. Criar o projeto Apps Script vinculado à planilha
+
+- Na própria planilha: **Extensões → Apps Script**. Isso cria um projeto
+  Apps Script já vinculado (bound script), o que garante que
+  `SpreadsheetApp.getActiveSpreadsheet()` funcione sem precisar passar o ID.
+- Anote o **Script ID** do projeto (**Configurações do projeto** → "Script ID").
+
+### 3. Instalar e autenticar o clasp
+
+```bash
+npm install -g @google/clasp
+clasp login
+```
+
+Isso abre o navegador para login Google e grava as credenciais em
+`~/.clasprc.json` (fora do repositório — nunca versionar, ver `.gitignore`).
+
+Na Google Cloud, habilite a **Apps Script API** em
+https://script.google.com/home/usersettings (necessário para o clasp
+conseguir enviar código).
+
+### 4. Vincular a pasta `backend/` ao projeto criado
+
+```bash
+cd backend
+cp .clasp.json.example .clasp.json
+```
+
+Edite `.clasp.json` e cole o **Script ID** anotado no passo 2. Depois envie
+os arquivos:
+
+```bash
+clasp push
+```
+
+(Alternativa: em vez de copiar o exemplo, rode `clasp clone <SCRIPT_ID>`
+dentro de `backend/` — ele já cria o `.clasp.json` correto e baixa o que
+existir no projeto.)
+
+### 5. Publicar o Web App
+
+```bash
+clasp deploy
+```
+
+Ou pela interface: no editor do Apps Script, **Implantar → Nova implantação
+→ Tipo: App da Web**. Configure:
+
+- **Executar como**: você mesmo (é quem terá permissão de escrita na planilha)
+- **Quem pode acessar**: conforme a necessidade (ex.: qualquer pessoa com o
+  link, se o frontend for acessado sem login Google; ou restrito ao domínio
+  da organização)
+
+Copie a **URL do Web App** gerada (termina em `/exec`) e cole em
+`APPS_SCRIPT_URL` no arquivo
+[frontend/assets/js/config.js](frontend/assets/js/config.js). Faça commit e
+push para o GitHub Pages republicar.
+
+> Sempre que o código do backend mudar, repita `clasp push` e crie uma nova
+> implantação (ou atualize a implantação existente) para as mudanças
+> valerem na URL pública.
