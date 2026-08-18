@@ -7,7 +7,7 @@
  *
  * Enquanto estiver vazia, chamarBackend() falha com erro explícito.
  */
-const APPS_SCRIPT_URL = '';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwDRH5JzBJ5Tf4PETQk3hYj-aY38dki8XTomYGP-r3-ZQ71rOBbEc9z4K0BLILjhDYIlA/exec';
 
 /** Nome da aplicação, usado em títulos e cabeçalhos. */
 const APP_NOME = 'Bússola de Processos';

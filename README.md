@@ -165,6 +165,28 @@ Copie a **URL do Web App** gerada (termina em `/exec`) e cole em
 [frontend/assets/js/config.js](frontend/assets/js/config.js). Faça commit e
 push para o GitHub Pages republicar.
 
-> Sempre que o código do backend mudar, repita `clasp push` e crie uma nova
-> implantação (ou atualize a implantação existente) para as mudanças
-> valerem na URL pública.
+> Sempre que o código do backend mudar, repita `clasp push`. Depois, para
+> atualizar o Web App **sem trocar a URL** (a mesma URL fica em
+> `config.js`), atualize o deployment existente em vez de criar um novo:
+>
+> ```bash
+> clasp list-deployments        # copie o ID do deployment em uso (não o @HEAD)
+> clasp deploy -i <DEPLOYMENT_ID> -d "Descrição da mudança"
+> ```
+>
+> Só use `clasp deploy` sem `-i` (cria um deployment novo, com URL nova) se
+> quiser publicar uma versão em paralelo à atual.
+
+### Estado atual do deploy
+
+- Projeto Apps Script vinculado à planilha, Script ID em `backend/.clasp.json`
+  (arquivo local, não versionado — recrie com `clasp clone <SCRIPT_ID>` ou
+  copiando `.clasp.json.example` se precisar em outra máquina).
+- Web App já publicado, acesso `ANYONE_ANONYMOUS` / executa como quem
+  implantou. A URL ativa está em
+  [frontend/assets/js/config.js](frontend/assets/js/config.js).
+- Ao testar a URL manualmente com `curl` (fora do navegador), lembre que o
+  Apps Script responde com um **redirect 302** para
+  `script.googleusercontent.com` antes do JSON final — isso é esperado e o
+  `fetch()` do navegador (usado em `assets/js/api.js`) já lida com isso
+  nativamente, sem configuração extra.
