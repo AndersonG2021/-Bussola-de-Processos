@@ -1,0 +1,48 @@
+name: Publicar frontend no GitHub Pages
+
+# Publica só o conteúdo de /frontend como site estático, mantendo a
+# estrutura /frontend + /backend do repositório (o GitHub Pages, no modo
+# "Deploy from a branch", só aceita publicar a raiz ou /docs — este
+# workflow contorna essa limitação sem precisar mover/renomear pastas).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/pages.yml"
+  # Permite rodar manualmente pela aba Actions do GitHub, se precisar.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Evita duas publicações rodando ao mesmo tempo; deixa a mais recente
+# terminar em vez de cancelar no meio.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Empacotar apenas /frontend
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: "frontend"
+
+      - name: Publicar no GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

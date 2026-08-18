@@ -80,15 +80,28 @@ qualquer chamada ao backend falha com um erro explícito — isso é esperado.
 
 ## Publicando no GitHub Pages
 
-1. Suba o repositório para o GitHub (branch `main`).
-2. Em **Settings → Pages**, configure:
-   - **Source**: `Deploy from a branch`
-   - **Branch**: `main`, pasta **`/frontend`**
-3. Salve. O GitHub publica em alguns minutos em
-   `https://<seu-usuario>.github.io/<nome-do-repo>/`.
-4. Sempre que `APPS_SCRIPT_URL` mudar (novo deploy do backend), atualize
+O GitHub Pages, no modo "Deploy from a branch", só permite publicar a partir
+da **raiz** do branch ou de uma pasta **`/docs`** — não existe opção para
+apontar direto para `/frontend`. Para manter a estrutura `/frontend` +
+`/backend` do repositório sem precisar mover/renomear pastas, a publicação
+usa um workflow do GitHub Actions
+([`.github/workflows/pages.yml`](.github/workflows/pages.yml)) que empacota
+só o conteúdo de `frontend/` a cada push em `main`.
+
+1. Suba o repositório para o GitHub (branch `main`) — o workflow já vai
+   junto, em `.github/workflows/pages.yml`.
+2. Em **Settings → Pages**, em **Build and deployment → Source**, troque de
+   `Deploy from a branch` para **`GitHub Actions`**.
+3. Isso é suficiente — não precisa escolher um workflow de template; o
+   `pages.yml` do repositório já roda sozinho a cada push que mexer em
+   `frontend/`. Acompanhe o progresso na aba **Actions** do repositório.
+4. Em alguns minutos o site fica em
+   `https://<seu-usuario>.github.io/<nome-do-repo>/` — servindo o conteúdo
+   de `frontend/` direto na raiz da URL (sem precisar de `/frontend/` no
+   caminho).
+5. Sempre que `APPS_SCRIPT_URL` mudar (novo deploy do backend), atualize
    [frontend/assets/js/config.js](frontend/assets/js/config.js) e faça
-   commit/push — o Pages republica automaticamente.
+   commit/push — o workflow republica automaticamente.
 
 > Se o repositório for privado, GitHub Pages exige plano pago do GitHub
 > para publicar. Caso não tenha, deixe o repositório público (o frontend
