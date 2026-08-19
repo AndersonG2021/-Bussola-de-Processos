@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bússola de Processos — Enviar documentos</title>
+  <link rel="stylesheet" href="assets/css/estilo.css">
+</head>
+<body>
+
+  <header class="cabecalho">
+    <div class="cabecalho__marca">🧭 Bússola de Processos</div>
+    <div class="cabecalho__usuario">
+      <span id="nomeUsuario"></span>
+      <span id="perfilUsuario" class="etiqueta-perfil"></span>
+      <button type="button" class="botao-sair" id="botaoSair">Sair</button>
+    </div>
+  </header>
+
+  <main class="conteudo conteudo--alinhado-topo">
+    <div class="cartao-upload">
+      <p class="link-voltar"><a href="principal.html">&larr; Voltar</a></p>
+      <h1>Enviar documentos do processo</h1>
+      <p class="cartao-upload__ajuda">
+        Só arquivos PDF ou HTML. Cada arquivo é enviado separadamente —
+        se um falhar, os outros continuam, e dá pra tentar de novo só o
+        que falhou.
+      </p>
+
+      <form id="formUpload" novalidate>
+        <div class="campo">
+          <label for="campoNumeroProcesso">Número/protocolo do processo</label>
+          <input type="text" id="campoNumeroProcesso" name="numero_processo" required>
+          <p class="campo-erro" id="erroNumeroProcesso"></p>
+        </div>
+
+        <div class="campo">
+          <label for="campoArquivos">Documentos (PDF ou HTML)</label>
+          <input type="file" id="campoArquivos" name="arquivos" accept=".pdf,.html,.htm" multiple>
+        </div>
+
+        <button type="submit" class="botao-primario" id="botaoEnviar">Enviar</button>
+      </form>
+
+      <ul class="lista-upload" id="listaUpload"></ul>
+
+      <p class="resumo-upload" id="resumoUpload"></p>
+    </div>
+  </main>
+
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/sessao.js"></script>
+  <script src="assets/js/upload.js"></script>
+</body>
+</html>

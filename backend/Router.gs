@@ -24,6 +24,7 @@ const ACOES_POST = {
   ping: acaoPing,
   login: acaoLogin,
   meuPerfil: acaoMeuPerfil,
+  uploadDocumento: acaoUploadDocumento,
   // Próximas ações (protegidas por padrão): registrem aqui.
 };
 

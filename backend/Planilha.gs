@@ -101,3 +101,47 @@ function buscarLinhaPorColuna(nomeAba, nomeColuna, valor) {
   }
   return null;
 }
+
+/**
+ * Insere uma linha no final da aba a partir de um objeto
+ * {nomeColuna: valor} — a ordem das colunas é resolvida pelo cabeçalho
+ * da aba, então quem chama não precisa montar (nem manter em sincronia
+ * manualmente) um array posicional. Colunas do cabeçalho ausentes no
+ * objeto ficam em branco na linha.
+ *
+ * @param {string} nomeAba
+ * @param {Object} valoresPorColuna
+ */
+function inserirLinha(nomeAba, valoresPorColuna) {
+  const aba = obterPlanilha().getSheetByName(nomeAba);
+  if (!aba) throw new Error('inserirLinha: aba "' + nomeAba + '" não existe.');
+
+  const cabecalho = aba.getRange(1, 1, 1, aba.getLastColumn()).getValues()[0];
+  const linha = cabecalho.map(function (coluna) {
+    return Object.prototype.hasOwnProperty.call(valoresPorColuna, coluna) ? valoresPorColuna[coluna] : '';
+  });
+  aba.appendRow(linha);
+}
+
+/**
+ * Atualiza só as colunas informadas de uma linha já existente
+ * (identificada pelo número de linha — ex.: o `linha` devolvido por
+ * buscarLinhaPorColuna). As demais colunas da linha não são tocadas.
+ *
+ * @param {string} nomeAba
+ * @param {number} linha  1-indexado (a linha 1 é o cabeçalho).
+ * @param {Object} valoresPorColuna  {nomeColuna: novoValor}
+ */
+function atualizarLinha(nomeAba, linha, valoresPorColuna) {
+  const aba = obterPlanilha().getSheetByName(nomeAba);
+  if (!aba) throw new Error('atualizarLinha: aba "' + nomeAba + '" não existe.');
+
+  const cabecalho = aba.getRange(1, 1, 1, aba.getLastColumn()).getValues()[0];
+  Object.keys(valoresPorColuna).forEach(function (coluna) {
+    const indice = cabecalho.indexOf(coluna);
+    if (indice === -1) {
+      throw new Error('atualizarLinha: coluna "' + coluna + '" não existe em "' + nomeAba + '".');
+    }
+    aba.getRange(linha, indice + 1).setValue(valoresPorColuna[coluna]);
+  });
+}

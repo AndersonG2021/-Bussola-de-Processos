@@ -56,6 +56,12 @@ Um registro por processo administrativo analisado.
 | `criado_em` | datetime ISO | |
 | `atualizado_em` | datetime ISO | |
 
+A linha é criada automaticamente no primeiro upload de documento do
+processo (`garantirProcesso`, em [Arquivo.gs](Arquivo.gs)), com
+`status = "Aguardando análise"` e `tipo_processo`/`subtipo_pleito`/
+`etapa_atual` em branco — quem preenche esses três é a análise de
+padrões (prompt futuro), não o upload.
+
 ### AnalisesHistorico
 
 Cada execução da análise de padrões sobre um processo gera uma linha aqui
@@ -88,6 +94,28 @@ Metadados dos arquivos do processo (o conteúdo fica no Drive).
 | `drive_file_id` | texto | ID do arquivo no Google Drive. |
 | `texto_extraido_ok` | booleano | `TRUE` se a extração de texto funcionou. |
 | `hash_conteudo` | texto | Hash do conteúdo — permite detectar o que mudou numa reanálise sem reprocessar tudo. |
+
+Preenchida pela action `uploadDocumento` (ver [Contrato da API](#contrato-da-api)).
+`texto_extraido_ok` sempre entra `FALSE` no upload — a extração de
+texto em si ainda não foi implementada (prompt futuro); esta coluna só
+passa a refletir a realidade quando esse prompt chegar.
+`hash_conteudo` é um SHA-256 simples do conteúdo do arquivo (sem salt —
+não é senha, é impressão digital de conteúdo).
+
+**Arquivo com o mesmo nome no mesmo processo → VERSIONA, não
+sobrescreve.** Um novo upload de `nome_arquivo` já existente para aquele
+`numero_processo` entra como uma linha nova, com o nome ajustado para
+`nome (v2).ext`, `nome (v3).ext`... (primeiro número livre) — tanto na
+planilha quanto no arquivo salvo no Drive. As versões anteriores
+continuam intactas, sem serem apagadas ou substituídas. Decisão: num
+processo administrativo o histórico importa para auditoria — perder a
+versão anterior silenciosamente seria pior que um nome de arquivo um
+pouco mais longo. Implementado em `proximoNomeDisponivel`
+([Arquivo.gs](Arquivo.gs)).
+
+**Estrutura no Drive:** uma pasta raiz fixa ("Bússola de Processos —
+Documentos") contendo uma subpasta por processo, nomeada com o
+`numero_processo` — o id dessa subpasta é o `Processos.drive_folder_id`.
 
 ### TiposProcesso
 
@@ -247,16 +275,43 @@ HTTP):
 ```
 ou
 ```json
-{ "ok": false, "erro": "mensagem legível" }
+{ "ok": false, "erro": "mensagem legível", "codigo": "opcional, ver abaixo" }
 ```
+
+`codigo` é opcional e serve pra frontend tratar um erro específico sem
+depender do texto de `erro` (que é só pra exibir). Hoje existem:
+
+| codigo | Quando acontece | O que o frontend faz |
+|---|---|---|
+| `SESSAO_INVALIDA` | Token ausente, inexistente, expirado, ou usuário associado inativo | `chamarBackend` (assets/js/api.js) já desloga e redireciona pro login sozinho, em QUALQUER chamada — nenhuma tela precisa tratar isso na mão |
+| `FORMATO_NAO_SUPORTADO` | Upload de arquivo que não é PDF nem HTML | Mostrado no item da lista de upload; não impede os outros arquivos do lote |
+| `ARQUIVO_VAZIO` | Upload de arquivo com 0 bytes | Idem |
+| `ARQUIVO_MUITO_GRANDE` | Upload maior que 20MB | Idem |
+| `ARQUIVO_INVALIDO` | Nome de arquivo ou base64 ausente/corrompido | Idem |
+| `PROCESSO_VAZIO` | `numero_processo` vazio no upload | Bloqueia o formulário antes de enviar (frontend também valida antes) |
 
 `doPost` (em [Principal.gs](Principal.gs)) faz `JSON.parse` do corpo e
 chama `rotearRequisicaoPost` (em [Router.gs](Router.gs)), que despacha
 para a função registrada no mapa `ACOES_POST` conforme o `action`.
 
-Ações implementadas hoje: **`ping`** (healthcheck, não faz nada com a
-planilha). Novas ações entram no mapa `ACOES_POST` conforme as telas
-forem construídas.
+**Autorização:** toda action que não esteja em `ACOES_PUBLICAS`
+(`Router.gs`) exige um `token` de sessão válido e não expirado —
+verificado por `validarSessao` ([Auth.gs](Auth.gs)) antes de rodar a
+action. A função da action recebe `(payload, sessao)`: `sessao` é
+`{token, usuarioId, perfil, nome}` para actions protegidas, ou `null`
+para as públicas.
+
+Ações implementadas hoje:
+
+| action | pública? | payload | data de sucesso |
+|---|---|---|---|
+| `ping` | sim | — | `{pong: true, servidor: <ISO>}` |
+| `login` | sim | `{usuario, senha}` | `{token, perfil, nome}` |
+| `meuPerfil` | não | — | `{perfil, nome}` — confirma que o token ainda vale |
+| `uploadDocumento` | não | `{numero_processo, nome_arquivo, conteudo_base64, mimetype}` | `{id_documento, nome_arquivo, drive_file_id, renomeado}` — `nome_arquivo` pode vir diferente do enviado se houve versionamento (`renomeado: true`) |
+
+Novas ações entram no mapa `ACOES_POST` conforme as telas forem
+construídas.
 
 ### GET (só healthcheck)
 

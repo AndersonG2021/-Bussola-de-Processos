@@ -66,10 +66,7 @@ function criarUsuario(usuarioLogin, senhaPlana, perfil, nome) {
  */
 function calcularHash(senhaPlana, salt) {
   const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt + senhaPlana);
-  return bytes.map(function (byte) {
-    const hex = (byte < 0 ? byte + 256 : byte).toString(16);
-    return hex.length === 1 ? '0' + hex : hex;
-  }).join('');
+  return bytesParaHex(bytes);
 }
 
 /**

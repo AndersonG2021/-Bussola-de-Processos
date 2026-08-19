@@ -34,3 +34,21 @@ function sair() {
   limparSessao();
   redirecionarParaLogin();
 }
+
+/**
+ * Preenche o cabeçalho padrão de tela protegida (nome/perfil da sessão
+ * e o botão Sair), se os elementos existirem na página. Chame depois
+ * que o DOM estiver pronto, em toda tela que reusa o `.cabecalho` do
+ * estilo.css com #nomeUsuario/#perfilUsuario/#botaoSair.
+ */
+function preencherCabecalhoSessao() {
+  if (!SESSAO_VALIDA) return;
+
+  const elementoNome = document.getElementById('nomeUsuario');
+  const elementoPerfil = document.getElementById('perfilUsuario');
+  const elementoBotaoSair = document.getElementById('botaoSair');
+
+  if (elementoNome) elementoNome.textContent = SESSAO_ATUAL.nome || '';
+  if (elementoPerfil) elementoPerfil.textContent = SESSAO_ATUAL.perfil || '';
+  if (elementoBotaoSair) elementoBotaoSair.addEventListener('click', sair);
+}

@@ -1,7 +1,8 @@
 /**
  * principal.js — tela principal (placeholder), frontend/principal.html.
  *
- * Depende de config.js, api.js e sessao.js (SESSAO_ATUAL, SESSAO_VALIDA, sair()).
+ * Depende de config.js, api.js e sessao.js (SESSAO_ATUAL, SESSAO_VALIDA,
+ * sair(), preencherCabecalhoSessao()).
  */
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -9,8 +10,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // instantâneo, então não segue renderizando nada que dependa da sessão.
   if (!SESSAO_VALIDA) return;
 
-  document.getElementById('nomeUsuario').textContent = SESSAO_ATUAL.nome || '';
-  document.getElementById('perfilUsuario').textContent = SESSAO_ATUAL.perfil || '';
+  preencherCabecalhoSessao();
 
   // Esconde qualquer item de menu marcado como exclusivo de Gerente
   // quando o perfil da sessão não for Gerente.
@@ -19,6 +19,4 @@ document.addEventListener('DOMContentLoaded', function () {
       elemento.style.display = 'none';
     });
   }
-
-  document.getElementById('botaoSair').addEventListener('click', sair);
 });

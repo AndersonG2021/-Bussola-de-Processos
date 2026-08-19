@@ -29,12 +29,17 @@ permissão sobre a planilha e o Drive.
 ```
 frontend/
   index.html               tela de login
+  principal.html            tela principal (placeholder + menu por perfil)
+  upload.html                envio de documentos do processo
   assets/
     css/estilo.css          estilo base reaproveitado pelas telas
     js/config.js             APPS_SCRIPT_URL e constantes globais
     js/api.js                 chamarBackend() — única porta de saída para o backend
-    js/login.js                lógica da tela de login (stub nesta etapa)
-    img/                       (vazio por enquanto)
+    js/sessao.js               guarda de sessão + cabeçalho padrão das telas protegidas
+    js/login.js                 lógica da tela de login
+    js/principal.js              lógica da tela principal
+    js/upload.js                  lógica do envio de documentos
+    img/                          (vazio por enquanto)
 
 backend/
   appsscript.json           manifest do Apps Script (timezone America/Fortaleza)
@@ -42,21 +47,19 @@ backend/
   ESQUEMA.md                 abas da planilha (colunas) e contrato da API — ver backend/ESQUEMA.md
   Principal.gs                doGet / doPost — pontos de entrada do Web App
   Router.gs                    despacha cada `action` recebida para a função certa
-  Auth.gs                       autenticação e validação de sessão (stub)
-  Planilha.gs                    acesso genérico ao Google Sheets (obter/criar aba, inserir linhas)
-  Seed.gs                         seedBaseDeRegras() — popula a planilha com a base de regras
-  Arquivo.gs                       acesso ao Google Drive (stub)
-  Utilitarios.gs                    funções auxiliares (stub)
+  Auth.gs                       login, hash de senha (criarUsuario) e sessão (validarSessao)
+  Arquivo.gs                     upload de documentos para o Drive (uploadDocumento)
+  Planilha.gs                     acesso genérico ao Google Sheets (obter/criar aba, inserir/buscar/atualizar linha)
+  Seed.gs                          seedBaseDeRegras() — popula a planilha com a base de regras
+  Utilitarios.gs                    funções auxiliares compartilhadas
 
 README.md
 .gitignore
 ```
 
-O contrato da API (ações POST/GET, formato de request/response) e o
+O contrato da API (ações, autorização, formato de request/response) e o
 esquema completo de colunas de cada aba estão documentados em
-[backend/ESQUEMA.md](backend/ESQUEMA.md). Fora a action `ping`
-(healthcheck) e a criação/seed das abas, ainda não há regra de negócio
-implementada — a tela de login segue sem autenticar ninguém.
+[backend/ESQUEMA.md](backend/ESQUEMA.md).
 
 ## Rodando o frontend localmente
 
