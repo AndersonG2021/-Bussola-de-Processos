@@ -36,6 +36,7 @@ const ESQUEMA_ABAS = {
   DocumentosProcesso: [
     'id_documento', 'numero_processo', 'nome_arquivo', 'drive_file_id',
     'texto_extraido_ok', 'hash_conteudo',
+    'texto_extraido_drive_file_id', 'hash_texto_extraido',
   ],
   TiposProcesso: ['nome_tipo', 'descricao'],
   SubtiposPleito: ['subtipo', 'tipo_processo', 'checklist_associado'],

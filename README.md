@@ -39,7 +39,8 @@ frontend/
     js/login.js                 lógica da tela de login
     js/principal.js              lógica da tela principal
     js/upload.js                  lógica do envio de documentos
-    img/                          (vazio por enquanto)
+    js/extracaoTexto.js            extração de texto de PDF/HTML no navegador (pdf.js)
+    img/                             (vazio por enquanto)
 
 backend/
   appsscript.json           manifest do Apps Script (timezone America/Fortaleza)
@@ -49,9 +50,10 @@ backend/
   Router.gs                    despacha cada `action` recebida para a função certa
   Auth.gs                       login, hash de senha (criarUsuario) e sessão (validarSessao)
   Arquivo.gs                     upload de documentos para o Drive (uploadDocumento)
-  Planilha.gs                     acesso genérico ao Google Sheets (obter/criar aba, inserir/buscar/atualizar linha)
-  Seed.gs                          seedBaseDeRegras() — popula a planilha com a base de regras
-  Utilitarios.gs                    funções auxiliares compartilhadas
+  TextoUtils.gs                   buscarPalavrasChave() e outros utilitários de texto extraído
+  Planilha.gs                      acesso genérico ao Google Sheets (obter/criar aba, inserir/buscar/atualizar linha)
+  Seed.gs                           seedBaseDeRegras() — popula a planilha com a base de regras
+  Utilitarios.gs                     funções auxiliares compartilhadas
 
 README.md
 .gitignore

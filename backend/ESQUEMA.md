@@ -13,6 +13,7 @@ o roteamento da API está em [Router.gs](Router.gs) e [Principal.gs](Principal.g
 - [Pendências de dados](#pendências-de-dados)
 - [Contrato da API](#contrato-da-api)
 - [Por que `text/plain` em vez de `application/json`](#por-que-textplain-em-vez-de-applicationjson)
+- [TextoUtils.gs — utilitários de texto](#textoutilsgs--utilitários-de-texto)
 
 ## Abas da planilha
 
@@ -92,15 +93,55 @@ Metadados dos arquivos do processo (o conteúdo fica no Drive).
 | `numero_processo` | texto | Referencia `Processos.numero_processo`. |
 | `nome_arquivo` | texto | |
 | `drive_file_id` | texto | ID do arquivo no Google Drive. |
-| `texto_extraido_ok` | booleano | `TRUE` se a extração de texto funcionou. |
-| `hash_conteudo` | texto | Hash do conteúdo — permite detectar o que mudou numa reanálise sem reprocessar tudo. |
+| `texto_extraido_ok` | booleano | `TRUE` se o texto extraído passou do limiar mínimo (ver abaixo). |
+| `hash_conteudo` | texto | Hash do conteúdo do arquivo original — permite detectar o que mudou numa reanálise sem reprocessar tudo. |
+| `texto_extraido_drive_file_id` | texto | ID do `.txt` irmão no Drive com o texto extraído. Vazio se `texto_extraido_ok = FALSE`. |
+| `hash_texto_extraido` | texto | Hash do texto extraído (não do arquivo original). Vazio se `texto_extraido_ok = FALSE`. |
 
 Preenchida pela action `uploadDocumento` (ver [Contrato da API](#contrato-da-api)).
-`texto_extraido_ok` sempre entra `FALSE` no upload — a extração de
-texto em si ainda não foi implementada (prompt futuro); esta coluna só
-passa a refletir a realidade quando esse prompt chegar.
-`hash_conteudo` é um SHA-256 simples do conteúdo do arquivo (sem salt —
-não é senha, é impressão digital de conteúdo).
+`hash_conteudo` é um SHA-256 simples do conteúdo do arquivo original
+(sem salt — não é senha, é impressão digital de conteúdo).
+
+#### Texto extraído dos documentos (Prompt 5)
+
+A extração de texto acontece **no navegador**, não no backend — decisão
+de arquitetura do Prompt 5: o Apps Script não tem uma API boa pra
+processar PDF, e extrair no servidor arriscaria estourar o limite de 6
+minutos de execução dele. `frontend/assets/js/extracaoTexto.js` usa a
+biblioteca [pdf.js](https://mozilla.github.io/pdf.js/) (carregada via
+CDN, versão fixa `3.11.174`) para PDF, e `DOMParser` + `textContent`
+nativos do navegador para HTML. O texto extraído vai junto no payload
+de `uploadDocumento` (campo opcional `texto_extraido`).
+
+**Onde o texto extraído fica salvo — DECISÃO: arquivo `.txt` irmão no
+Drive, não uma coluna da planilha.** Uma célula do Google Sheets tem um
+limite rígido de 50.000 caracteres; um documento administrativo de
+várias páginas facilmente passa disso, e um estouro silencioso
+truncaria o texto sem aviso — inaceitável pra uma engine de busca por
+palavra-chave. Guardando num arquivo `.txt` (nome:
+`<nome_arquivo_final>.txt`, mesma pasta do documento original) não há
+esse limite, e o custo de consultar depois é só mais uma chamada
+`DriveApp.getFileById(id).getBlob().getDataAsString()` — pequeno frente
+ao risco de truncamento.
+
+**Limiar de "texto não pôde ser lido":** menos de `30` caracteres
+(depois de `trim`) — sinal de PDF escaneado sem camada de texto (só
+imagem, sem OCR). Constante `LIMIAR_TEXTO_EXTRAIDO_CARACTERES`,
+duplicada em `frontend/assets/js/extracaoTexto.js` (decide o que
+mostrar no resumo do upload) e `backend/Arquivo.gs` (reconfere de
+novo — mesmo padrão de "valide de novo no backend" do resto do app,
+não confia cegamente no que o frontend calculou). Um arquivo com texto
+abaixo do limiar **ainda é enviado normalmente** — só fica com
+`texto_extraido_ok = FALSE`, sem `.txt` irmão nem `hash_texto_extraido`;
+o upload da Funcionalidade 2 não é bloqueado por isso, só sinaliza no
+resumo.
+
+**Limitação conhecida:** pdf.js extrai o texto mas perde a estrutura de
+tabela — cotações, mapas de cotação e outras tabelas viram texto
+corrido, sem separação de coluna. Isso pode prejudicar a precisão da
+Funcionalidade 5 (detecção de divergências) mais adiante. Aceitável
+pro MVP; vale revisar se a precisão de detecção ficar abaixo do
+esperado.
 
 **Arquivo com o mesmo nome no mesmo processo → VERSIONA, não
 sobrescreve.** Um novo upload de `nome_arquivo` já existente para aquele
@@ -332,7 +373,7 @@ Ações implementadas hoje:
 | `ping` | sim | — | `{pong: true, servidor: <ISO>}` |
 | `login` | sim | `{usuario, senha}` | `{token, perfil, nome}` |
 | `meuPerfil` | não | — | `{perfil, nome}` — confirma que o token ainda vale |
-| `uploadDocumento` | não | `{numero_processo, nome_arquivo, conteudo_base64, mimetype}` | `{id_documento, nome_arquivo, drive_file_id, renomeado}` — `nome_arquivo` pode vir diferente do enviado se houve versionamento (`renomeado: true`) |
+| `uploadDocumento` | não | `{numero_processo, nome_arquivo, conteudo_base64, mimetype, texto_extraido?}` | `{id_documento, nome_arquivo, drive_file_id, renomeado, texto_extraido_ok}` — `nome_arquivo` pode vir diferente do enviado se houve versionamento (`renomeado: true`); `texto_extraido` é opcional (ver [Texto extraído dos documentos](#texto-extraído-dos-documentos-prompt-5)) |
 
 Novas ações entram no mapa `ACOES_POST` conforme as telas forem
 construídas.
@@ -371,3 +412,26 @@ quando o tipo declarado não é `application/json`.
 
 Essa convenção vale só para POST. GET não tem corpo — os parâmetros vão
 na query string (`?action=ping`) e chegam em `e.parameter`.
+
+## TextoUtils.gs — utilitários de texto
+
+[TextoUtils.gs](TextoUtils.gs) reúne funções sobre o texto extraído dos
+documentos (ver [Texto extraído dos documentos](#texto-extraído-dos-documentos-prompt-5)),
+pensadas pra serem reaproveitadas pelas próximas funcionalidades de
+reconhecimento de padrões (identificação de tipo/etapa, checklist,
+divergências) em vez de cada uma reimplementar a própria busca de texto:
+
+- **`buscarPalavrasChave(texto, listaPalavras)`** — devolve o
+  subconjunto de `listaPalavras` que aparece em `texto`, ignorando
+  maiúscula/minúscula e acentuação (`repactuação` bate com
+  `Repactuacao`). Pensada pra ser usada com a coluna `palavras_chave`
+  dos checklists (`ChecklistTA`/`ChecklistRestituicao`/`ChecklistTC`,
+  ver [Abas da planilha](#abas-da-planilha)).
+- **`normalizarTexto(texto)`** — minúsculo e sem diacríticos; usada
+  internamente por `buscarPalavrasChave`, mas exposta porque outras
+  comparações de texto (fora de busca por palavra-chave) provavelmente
+  vão precisar da mesma normalização.
+- **`calcularHashTexto(texto)`** — SHA-256 de uma string, em hex; é o
+  que preenche `DocumentosProcesso.hash_texto_extraido` no upload, e
+  serve pra qualquer outra comparação "esse texto mudou desde a última
+  vez?" que aparecer nas próximas funcionalidades.

@@ -7,7 +7,8 @@
  * falhar/repetir independente dos outros (ver acaoUploadDocumento em
  * backend/Arquivo.gs).
  *
- * Depende de config.js, api.js e sessao.js.
+ * Depende de config.js, api.js, sessao.js e extracaoTexto.js (extrai o
+ * texto do arquivo antes de enviar — Prompt 5).
  */
 
 // Mantenha em sincronia com MIMETYPES_SUPORTADOS / TAMANHO_MAXIMO_ARQUIVO_BYTES em backend/Arquivo.gs.
@@ -120,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function () {
       elementoLi: li,
       elementoStatus: status,
       elementoBotaoRetry: botaoRetry,
-      situacao: 'pendente', // pendente | enviando | sucesso | erro
+      situacao: 'pendente', // pendente | enviando | sucesso | sucesso-sem-texto | erro
     };
 
     // Reenvia só este arquivo — os outros itens (já enviados ou ainda
@@ -153,18 +154,34 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     try {
+      // Extração de texto acontece ANTES do envio (Prompt 5) — nunca
+      // bloqueia o upload do arquivo em si, mesmo se a extração falhar
+      // ou o resultado ficar abaixo do limiar (extrairTexto nunca
+      // rejeita a Promise, ver extracaoTexto.js).
+      definirSituacao(item, 'enviando', 'Lendo texto do arquivo...');
+      const resultadoExtracao = await extrairTexto(item.arquivo, mimetype);
+
+      definirSituacao(item, 'enviando', 'Enviando...');
       const conteudoBase64 = await lerComoBase64(item.arquivo);
       const dados = await chamarBackend('uploadDocumento', {
         numero_processo: numeroProcesso,
         nome_arquivo: item.arquivo.name,
         conteudo_base64: conteudoBase64,
         mimetype: mimetype,
+        texto_extraido: resultadoExtracao.texto,
       });
 
-      const mensagem = dados.renomeado
+      const nomeSalvo = dados.renomeado
         ? 'Enviado como "' + dados.nome_arquivo + '" (já existia um arquivo com esse nome).'
         : 'Enviado.';
-      definirSituacao(item, 'sucesso', mensagem);
+
+      if (resultadoExtracao.ok) {
+        definirSituacao(item, 'sucesso', nomeSalvo);
+      } else {
+        definirSituacao(item, 'sucesso-sem-texto',
+          nomeSalvo + ' Texto não pôde ser lido (provavelmente PDF escaneado sem OCR) — ' +
+          'não vai aparecer em buscas por palavra-chave.');
+      }
     } catch (erro) {
       // Cobre tanto erro de rede/timeout quanto erro de negócio devolvido
       // pelo backend (ex.: formato não suportado) — chamarBackend (api.js)
@@ -183,16 +200,24 @@ document.addEventListener('DOMContentLoaded', function () {
   function atualizarResumo() {
     const total = itensUpload.length;
     const sucesso = itensUpload.filter(function (i) { return i.situacao === 'sucesso'; }).length;
+    const semTexto = itensUpload.filter(function (i) { return i.situacao === 'sucesso-sem-texto'; }).length;
     const falha = itensUpload.filter(function (i) { return i.situacao === 'erro'; }).length;
-    const pendente = total - sucesso - falha;
+    const pendente = total - sucesso - semTexto - falha;
 
     if (pendente > 0) {
       resumoUpload.textContent = '';
       return;
     }
 
-    resumoUpload.textContent = sucesso + ' de ' + total + ' arquivo(s) enviado(s) com sucesso' +
-      (falha > 0 ? '; ' + falha + ' falharam (veja o motivo em cada item acima).' : '.');
+    const partes = [(sucesso + semTexto) + ' de ' + total + ' arquivo(s) enviado(s) com sucesso'];
+    if (semTexto > 0) {
+      partes.push(semTexto + ' sem texto extraído');
+    }
+    if (falha > 0) {
+      partes.push(falha + ' falharam (veja o motivo em cada item acima)');
+    }
+
+    resumoUpload.textContent = partes.join('; ') + '.';
   }
 });
 

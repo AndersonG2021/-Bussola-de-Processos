@@ -41,10 +41,22 @@ const MIMETYPES_SUPORTADOS = ['application/pdf', 'text/html'];
 const TAMANHO_MAXIMO_ARQUIVO_BYTES = 20 * 1024 * 1024; // 20MB
 
 /**
+ * Abaixo desse tanto de caracteres (depois de trim), o texto extraído
+ * no navegador é tratado como "não pôde ser lido" (ex.: PDF escaneado
+ * sem OCR) — mantenha em sincronia com LIMIAR_TEXTO_EXTRAIDO_CARACTERES
+ * em frontend/assets/js/extracaoTexto.js. O backend reconfere esse
+ * limiar de novo (não confia cegamente no que o frontend decidiu),
+ * mesmo padrão de "valide de novo no backend" do resto do app.
+ */
+const LIMIAR_TEXTO_EXTRAIDO_CARACTERES = 30;
+
+/**
  * Action "uploadDocumento" (protegida — exige sessão válida). Payload:
- * { numero_processo, nome_arquivo, conteudo_base64, mimetype }.
+ * { numero_processo, nome_arquivo, conteudo_base64, mimetype, texto_extraido }.
+ * `texto_extraido` é opcional — string vazia/ausente vira
+ * texto_extraido_ok = false, sem impedir o upload do arquivo em si.
  *
- * @param {{numero_processo: string, nome_arquivo: string, conteudo_base64: string, mimetype: string}} payload
+ * @param {{numero_processo: string, nome_arquivo: string, conteudo_base64: string, mimetype: string, texto_extraido?: string}} payload
  * @param {{token: string, usuarioId: string, perfil: string, nome: string}} sessao
  * @returns {{ok: boolean, data?: Object, erro?: string, codigo?: string}}
  */
@@ -53,6 +65,9 @@ function acaoUploadDocumento(payload, sessao) {
   const nomeArquivo = String((payload && payload.nome_arquivo) || '').trim();
   const conteudoBase64 = payload && payload.conteudo_base64;
   const mimetype = payload && payload.mimetype;
+  const textoExtraido = typeof (payload && payload.texto_extraido) === 'string'
+    ? payload.texto_extraido.trim()
+    : '';
 
   if (!numeroProcesso) {
     return { ok: false, erro: 'Número do processo é obrigatório.', codigo: 'PROCESSO_VAZIO' };
@@ -94,13 +109,23 @@ function acaoUploadDocumento(payload, sessao) {
   const hashConteudo = calcularHashBytes(bytes);
   const idDocumento = Utilities.getUuid();
 
+  const textoExtraidoOk = textoExtraido.length >= LIMIAR_TEXTO_EXTRAIDO_CARACTERES;
+  let textoExtraidoDriveFileId = '';
+  let hashTextoExtraido = '';
+  if (textoExtraidoOk) {
+    textoExtraidoDriveFileId = salvarTextoExtraidoNoDrive(pastaProcesso, nomeFinal, textoExtraido);
+    hashTextoExtraido = calcularHashTexto(textoExtraido);
+  }
+
   inserirLinha('DocumentosProcesso', {
     id_documento: idDocumento,
     numero_processo: numeroProcesso,
     nome_arquivo: nomeFinal,
     drive_file_id: driveFileId,
-    texto_extraido_ok: false, // extração de texto entra num prompt futuro
+    texto_extraido_ok: textoExtraidoOk,
     hash_conteudo: hashConteudo,
+    texto_extraido_drive_file_id: textoExtraidoDriveFileId,
+    hash_texto_extraido: hashTextoExtraido,
   });
 
   garantirProcesso(numeroProcesso, pastaProcesso.getId());
@@ -112,6 +137,7 @@ function acaoUploadDocumento(payload, sessao) {
       nome_arquivo: nomeFinal,
       drive_file_id: driveFileId,
       renomeado: nomeFinal !== nomeArquivo,
+      texto_extraido_ok: textoExtraidoOk,
     },
   };
 }
@@ -216,6 +242,21 @@ function obterOuCriarPastaProcesso(numeroProcesso) {
 function salvarArquivoNoDrive(pasta, nomeArquivo, bytes, mimetype) {
   const blob = Utilities.newBlob(bytes, mimetype, nomeArquivo);
   return pasta.createFile(blob).getId();
+}
+
+/**
+ * Salva o texto extraído de um documento como um arquivo .txt irmão,
+ * na mesma pasta do processo — ver ESQUEMA.md, seção "Texto extraído
+ * dos documentos", pra decisão de guardar num arquivo em vez de numa
+ * célula da planilha.
+ * @param {GoogleAppsScript.Drive.Folder} pasta
+ * @param {string} nomeArquivoOriginal  Nome final do documento (já versionado, se for o caso).
+ * @param {string} texto
+ * @returns {string}  drive_file_id do .txt criado.
+ */
+function salvarTextoExtraidoNoDrive(pasta, nomeArquivoOriginal, texto) {
+  const nomeArquivoTexto = nomeArquivoOriginal + '.txt';
+  return pasta.createFile(nomeArquivoTexto, texto, MimeType.PLAIN_TEXT).getId();
 }
 
 /**

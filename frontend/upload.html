@@ -24,7 +24,10 @@
       <p class="cartao-upload__ajuda">
         Só arquivos PDF ou HTML. Cada arquivo é enviado separadamente —
         se um falhar, os outros continuam, e dá pra tentar de novo só o
-        que falhou.
+        que falhou. PDFs escaneados sem OCR (imagem, sem texto
+        selecionável) são enviados normalmente, mas ficam marcados como
+        "sem texto extraído" — a busca por palavra-chave não vai
+        encontrar nada neles.
       </p>
 
       <form id="formUpload" novalidate>
@@ -48,9 +51,13 @@
     </div>
   </main>
 
+  <!-- pdf.js: extrai texto de PDF no navegador (ver assets/js/extracaoTexto.js).
+       Versão fixa (3.11.174) — troque junto com o workerSrc lá se atualizar. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="assets/js/config.js"></script>
   <script src="assets/js/api.js"></script>
   <script src="assets/js/sessao.js"></script>
+  <script src="assets/js/extracaoTexto.js"></script>
   <script src="assets/js/upload.js"></script>
 </body>
 </html>
