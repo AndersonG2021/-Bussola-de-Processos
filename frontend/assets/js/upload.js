@@ -61,6 +61,16 @@ document.addEventListener('DOMContentLoaded', function () {
       await enviarItem(item, numeroProcesso);
     }
 
+    // Limpa o campo de arquivos ao final do lote (sucesso ou falha).
+    // Sem isso, o navegador continua mostrando os arquivos já
+    // processados como "selecionados" — dá a falsa impressão de que
+    // nada foi enviado e, pior, um clique em "Enviar" de novo reenvia
+    // os mesmos arquivos sem necessidade. Os itens que falharam não
+    // dependem mais do campo pra serem reenviados: o botão "Tentar
+    // novamente" de cada um já guarda o arquivo (item.arquivo)
+    // independente do que está no input.
+    campoArquivos.value = '';
+
     atualizarResumo();
     botaoEnviar.disabled = false;
   }
