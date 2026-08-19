@@ -77,6 +77,53 @@ body {
   background: rgba(255, 255, 255, 0.15);
 }
 
+.etiqueta-perfil {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Tela principal (placeholder) */
+.menu-principal {
+  background: var(--cor-cartao);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  padding: 2rem;
+  width: 100%;
+  max-width: 480px;
+}
+
+.menu-principal h1 {
+  margin-top: 0;
+  color: var(--cor-primaria);
+  font-size: 1.3rem;
+}
+
+.menu-principal__lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 1.5rem;
+}
+
+.menu-principal__item {
+  display: block;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  color: var(--cor-texto);
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.menu-principal__item:hover {
+  border-color: var(--cor-primaria-clara);
+  background: var(--cor-fundo);
+}
+
 /* Container central genérico */
 .conteudo {
   flex: 1;

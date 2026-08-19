@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bússola de Processos</title>
+  <link rel="stylesheet" href="assets/css/estilo.css">
+</head>
+<body>
+
+  <header class="cabecalho">
+    <div class="cabecalho__marca">🧭 Bússola de Processos</div>
+    <div class="cabecalho__usuario">
+      <span id="nomeUsuario"></span>
+      <span id="perfilUsuario" class="etiqueta-perfil"></span>
+      <button type="button" class="botao-sair" id="botaoSair">Sair</button>
+    </div>
+  </header>
+
+  <main class="conteudo">
+    <div class="menu-principal">
+      <h1>Bem-vindo(a)</h1>
+      <p>Esta é a tela principal — placeholder por enquanto. As telas de
+        consulta e análise de processo entram nos próximos prompts.</p>
+
+      <nav class="menu-principal__lista">
+        <a href="#" class="menu-principal__item">Consultar processo</a>
+        <a href="#" class="menu-principal__item" data-somente-gerente>
+          Editar base de regras (checklists, subtipos, exceções)
+        </a>
+      </nav>
+    </div>
+  </main>
+
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/sessao.js"></script>
+  <script src="assets/js/principal.js"></script>
+</body>
+</html>

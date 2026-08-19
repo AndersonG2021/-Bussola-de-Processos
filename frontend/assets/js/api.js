@@ -66,34 +66,59 @@ async function chamarBackend(action, payload = {}) {
   }
 
   if (!corpo.ok) {
-    throw new Error(corpo.erro || 'O servidor recusou a operação.');
+    // Sessão expirada/inválida em QUALQUER chamada (não só login): desloga
+    // e manda de volta pro login, de forma centralizada — nenhuma tela
+    // precisa tratar isso na mão. Ver Router.gs no backend (codigo
+    // SESSAO_INVALIDA é devolvido por validarSessao).
+    if (corpo.codigo === 'SESSAO_INVALIDA') {
+      limparSessao();
+      redirecionarParaLogin();
+    }
+    const erro = new Error(corpo.erro || 'O servidor recusou a operação.');
+    erro.codigo = corpo.codigo || null;
+    throw erro;
   }
   return corpo.data;
 }
 
 /**
  * Recupera a sessão salva no navegador.
+ *
+ * Usa sessionStorage (não localStorage) de propósito: some quando a
+ * aba fecha, então a sessão não fica "logada pra sempre" num
+ * computador compartilhado. A expiração de verdade (8h) é controlada
+ * pelo backend (Sessoes.expira_em) — isto aqui só evita mostrar telas
+ * protegidas antes de qualquer chamada real confirmar a sessão.
  * @returns {Object|null}
  */
 function obterSessao() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_CHAVE_SESSAO)) || null;
+    return JSON.parse(sessionStorage.getItem(STORAGE_CHAVE_SESSAO)) || null;
   } catch (_) {
     return null;
   }
 }
 
 /**
- * Guarda a sessão devolvida pelo backend após o login.
+ * Guarda a sessão devolvida pelo backend após o login (token, perfil, nome).
  * @param {Object} sessao
  */
 function salvarSessao(sessao) {
-  localStorage.setItem(STORAGE_CHAVE_SESSAO, JSON.stringify(sessao));
+  sessionStorage.setItem(STORAGE_CHAVE_SESSAO, JSON.stringify(sessao));
 }
 
 /** Apaga a sessão local (logout). */
 function limparSessao() {
-  localStorage.removeItem(STORAGE_CHAVE_SESSAO);
+  sessionStorage.removeItem(STORAGE_CHAVE_SESSAO);
+}
+
+/**
+ * Manda o navegador para a tela de login. Todas as páginas protegidas
+ * vivem no mesmo nível de pasta que index.html (sem subpastas), então
+ * um caminho relativo simples funciona a partir de qualquer uma delas.
+ */
+function redirecionarParaLogin() {
+  window.location.href = 'index.html';
 }
 
 /**

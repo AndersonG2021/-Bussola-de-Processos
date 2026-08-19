@@ -3,19 +3,28 @@
  *
  * doPost recebe um corpo JSON { action, token, payload } e despacha para
  * a função registrada em ACOES_POST. doGet só aceita ?action=ping (ver
- * ESQUEMA.md, seção "Contrato da API") — GET nunca deve disparar ações
- * que leem ou gravam dados, porque pode ser acionado sem querer (link
- * prefetching de navegador, crawler, etc.).
+ * ESQUEMA.md, seção "Contrato da API").
  *
- * Conforme as telas forem implementadas (login, consulta de processo,
- * upload de documento...), cada action nova entra no mapa ACOES_POST,
- * apontando para a função responsável no arquivo do domínio dela
- * (Auth.gs, Planilha.gs, Arquivo.gs...).
+ * Autorização: toda action que não esteja em ACOES_PUBLICAS exige um
+ * token de sessão válido e não expirado (validarSessao, em Auth.gs)
+ * antes de rodar. Se a sessão não validar, a resposta vem com
+ * `codigo: 'SESSAO_INVALIDA'` — o frontend (chamarBackend, em
+ * assets/js/api.js) usa esse código pra deslogar e voltar ao login
+ * automaticamente em qualquer chamada, não só no login em si.
+ *
+ * Toda função de action recebe (payload, sessao): `sessao` é o objeto
+ * devolvido por validarSessao ({token, usuarioId, perfil, nome}) para
+ * actions protegidas, ou `null` para as públicas.
  */
+
+// Ações que NÃO exigem sessão válida.
+const ACOES_PUBLICAS = ['ping', 'login'];
 
 const ACOES_POST = {
   ping: acaoPing,
-  // login: autenticar,   // Auth.gs — próxima etapa
+  login: acaoLogin,
+  meuPerfil: acaoMeuPerfil,
+  // Próximas ações (protegidas por padrão): registrem aqui.
 };
 
 // Subconjunto de ACOES_POST liberado também via GET. Mantenha só ações
@@ -26,7 +35,7 @@ const ACOES_GET = {
 
 /**
  * @param {{action: string, payload: Object, token: string}} requisicao
- * @returns {{ok: boolean, data?: *, erro?: string}}
+ * @returns {{ok: boolean, data?: *, erro?: string, codigo?: string}}
  */
 function rotearRequisicaoPost(requisicao) {
   const acao = requisicao && requisicao.action;
@@ -35,7 +44,21 @@ function rotearRequisicaoPost(requisicao) {
     return { ok: false, erro: 'Ação desconhecida ou ainda não implementada: ' + acao };
   }
 
-  return ACOES_POST[acao](requisicao.payload || {}, requisicao.token || null);
+  const payload = requisicao.payload || {};
+
+  if (ACOES_PUBLICAS.indexOf(acao) !== -1) {
+    return ACOES_POST[acao](payload, null);
+  }
+
+  const sessao = validarSessao(requisicao.token);
+  if (!sessao) {
+    return {
+      ok: false,
+      erro: 'Sessão expirada ou inválida. Faça login novamente.',
+      codigo: 'SESSAO_INVALIDA',
+    };
+  }
+  return ACOES_POST[acao](payload, sessao);
 }
 
 /**

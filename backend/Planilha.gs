@@ -67,3 +67,37 @@ function inserirLinhasSeVazia(aba, linhas) {
   aba.getRange(2, 1, linhas.length, linhas[0].length).setValues(linhas);
   return true;
 }
+
+/**
+ * Busca a primeira linha de uma aba cujo valor na coluna informada bate
+ * (comparação estrita ===) com `valor`. Usada por Auth.gs para achar
+ * usuário por login e sessão por token, mas serve pra qualquer busca
+ * simples por igualdade em qualquer aba.
+ *
+ * @param {string} nomeAba
+ * @param {string} nomeColuna  Precisa bater com um nome de coluna do cabeçalho (linha 1).
+ * @param {*} valor
+ * @returns {{linha: number, valores: Object}|null}
+ *   `linha` é o número da linha na planilha (1-indexado, útil pra um
+ *   futuro update). `valores` é um objeto {nomeColuna: valor} com a
+ *   linha inteira. null se a aba não existir, a coluna não existir, ou
+ *   nenhuma linha bater.
+ */
+function buscarLinhaPorColuna(nomeAba, nomeColuna, valor) {
+  const aba = obterPlanilha().getSheetByName(nomeAba);
+  if (!aba) return null;
+
+  const dados = aba.getDataRange().getValues();
+  const cabecalho = dados[0];
+  const indiceColuna = cabecalho.indexOf(nomeColuna);
+  if (indiceColuna === -1) return null;
+
+  for (let i = 1; i < dados.length; i++) {
+    if (dados[i][indiceColuna] === valor) {
+      const valores = {};
+      cabecalho.forEach((coluna, indice) => { valores[coluna] = dados[i][indice]; });
+      return { linha: i + 1, valores: valores };
+    }
+  }
+  return null;
+}
