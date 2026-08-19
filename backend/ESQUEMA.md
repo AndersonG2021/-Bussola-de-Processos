@@ -111,18 +111,20 @@ Mapeia cada subtipo de pleito ao tipo de processo e ao checklist que ele usa.
 | `tipo_processo` | texto — referencia `TiposProcesso.nome_tipo` |
 | `checklist_associado` | texto — nome da aba de checklist, ou `"a confirmar"` |
 
-Seed atual (todos hoje são subtipos de **Termo Aditivo**):
+Seed atual: 24 subtipos de **Termo Aditivo** (→ `ChecklistTA`) + 2 de
+**Termo de Compromisso** (→ `ChecklistTC`, ainda vazio). Fonte: os 8
+primeiros vieram do Prompt 2; os demais, da tabela "TIPO DO
+PROCESSO/INSTRUÇÃO" do arquivo `Fluxo dos Termos Aditivos (Antigo).odt`
+— só as linhas categorizadas como "Termo Aditivo" ou "TC" entraram; as
+categorizadas como "Diverso" ou "Seleção" ficaram de fora por não
+pertencerem aos 3 tipos de processo deste app. A lista completa está em
+`SUBTIPOS_PLEITO` em [Seed.gs](Seed.gs).
 
-| subtipo | checklist_associado |
-|---|---|
-| Aquisição de Bens | ChecklistTA |
-| Obras | ChecklistTA |
-| Ajuste de Metas/Serviços Assistenciais | ChecklistTA |
-| Repactuação Financeira | ChecklistTA |
-| Emendas Parlamentares | ChecklistTA |
-| Prorrogação | ChecklistTA |
-| PE Acessível | *a confirmar* |
-| Operação de Crédito | *a confirmar* |
+Duas duplas quase-sinônimas foram mantidas como itens distintos (o
+documento-fonte as lista separadamente) — revisar se são o mesmo
+subtipo ou não: `Obras` (Prompt 2) vs `Obra` (documento), e
+`Repactuação Financeira` (Prompt 2) vs `Repactuação Financeira (Meta)`
+(documento).
 
 ### ChecklistTA, ChecklistRestituicao, ChecklistTC
 
@@ -137,10 +139,17 @@ As três seguem o mesmo formato de coluna — uma linha por etapa do fluxo.
 | `setor_responsavel` | texto | Referencia `AtribuicoesSetor.sigla`. |
 | `obrigatorio` | booleano | Se a etapa é obrigatória no fluxo. |
 
-- **ChecklistTA**: 13 macro-etapas do fluxo genérico de Termo Aditivo —
-  **pendente**, ver [Pendências de dados](#pendências-de-dados).
+- **ChecklistTA**: as 13 macro-etapas do fluxo genérico de Termo Aditivo
+  (seções 1–13 de `Fluxo dos Termos Aditivos (Antigo).odt` — a seção 0,
+  anterior à abertura do pleito, não conta como etapa). As etapas 9–13
+  vêm com `obrigatorio = FALSE`: são boas práticas, exceções ou material
+  de referência/apoio, não passos sequenciais obrigatórios do trâmite.
+  Dados em `ETAPAS_TERMO_ADITIVO`, [Seed.gs](Seed.gs).
 - **ChecklistRestituicao**: 8 etapas do fluxo de Restituição de Déficit
-  Financeiro — **pendente**, ver abaixo.
+  Financeiro. O documento-fonte só numera 5 seções (17 itens no total);
+  as 8 etapas são um agrupamento desses itens em blocos coerentes,
+  confirmado com o usuário antes de popular a planilha. Dados em
+  `ETAPAS_RESTITUICAO_DEFICIT`, [Seed.gs](Seed.gs).
 - **ChecklistTC**: vazio de propósito. `seedBaseDeRegras()` insere uma
   linha só com `nome_etapa = "(pendente de definição pelo Gerente)"` para
   deixar isso visível na própria planilha.
@@ -155,8 +164,17 @@ Catálogo dos setores que aparecem em `setor_responsavel` nos checklists.
 | `nome_setor` | texto |
 | `descricao` | texto |
 
-**Pendente** — nenhum setor definido ainda; `seedBaseDeRegras()` só cria a
-aba com o cabeçalho.
+Seed atual: 26 setores/siglas citados no fluxo de Termo Aditivo e de
+Restituição de Déficit Financeiro (`ATRIBUICOES_SETOR`, em
+[Seed.gs](Seed.gs)), com `descricao` condensada a partir do texto do
+documento-fonte — das tabelas de atribuições quando disponível, senão
+do papel do setor descrito na narrativa do fluxo. Sete siglas (GACDE,
+DGI, CMA, SEAS, NUGEP, GCON, GPOAS) aparecem no documento só como
+abreviação, sem o nome por extenso — o campo `nome_setor` diz isso
+explicitamente; e algumas coordenações citadas nas tabelas de
+atribuições do documento (ex.: as de supervisão por macrorregião da
+CTAI) ficaram de fora por não ter sigla confirmada em nenhum outro
+trecho do texto.
 
 ### RegrasEspeciais
 
@@ -190,23 +208,18 @@ autorize com a mesma conta dona da planilha.
 
 ## Pendências de dados
 
-Duas abas de checklist ainda estão vazias (só cabeçalho) porque o texto
-das etapas ainda não foi definido:
-
-- **ChecklistTA** — precisa das 13 macro-etapas do fluxo genérico de
-  Termo Aditivo.
-- **ChecklistRestituicao** — precisa das 8 etapas do fluxo de
-  Restituição de Déficit Financeiro.
-
-Quando esse texto for definido, preencha os arrays `ETAPAS_TERMO_ADITIVO`
-e `ETAPAS_RESTITUICAO_DEFICIT` em [Seed.gs](Seed.gs) (uma linha por
-etapa, na ordem de colunas de `ChecklistTA`/`ChecklistRestituicao`
-acima) e rode `seedBaseDeRegras()` de novo — como as abas ainda estarão
-vazias, as linhas entram normalmente.
-
-Também pendentes: o checklist de **Termo de Compromisso** (`ChecklistTC`,
-deixado vazio a pedido, aguardando definição do Gerente) e o catálogo de
-**AtribuicoesSetor** (nenhum setor cadastrado ainda).
+- **ChecklistTC** — vazio de propósito, aguardando definição do Gerente
+  (ver seção acima).
+- Duas duplas quase-sinônimas em `SubtiposPleito` que podem precisar de
+  revisão/unificação: `Obras` vs `Obra`, e `Repactuação Financeira` vs
+  `Repactuação Financeira (Meta)` (ver seção `SubtiposPleito` acima).
+- Sete siglas em `AtribuicoesSetor` sem nome por extenso confirmado no
+  documento-fonte: GACDE, DGI, CMA, SEAS, NUGEP, GCON, GPOAS.
+- O documento-fonte (`Fluxo dos Termos Aditivos (Antigo).odt`) também
+  traz um guia de campos do sistema de cadastro de Termo Aditivo (nº
+  do SEI, Grupo de Despesa, Regular/Não regular, etc.) — não é dado de
+  checklist, mas é referência útil para quando a tela de registro de
+  processo (`Processos`) for implementada.
 
 ## Contrato da API
 
