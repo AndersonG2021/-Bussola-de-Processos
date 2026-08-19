@@ -113,9 +113,33 @@ versão anterior silenciosamente seria pior que um nome de arquivo um
 pouco mais longo. Implementado em `proximoNomeDisponivel`
 ([Arquivo.gs](Arquivo.gs)).
 
-**Estrutura no Drive:** uma pasta raiz fixa ("Bússola de Processos —
-Documentos") contendo uma subpasta por processo, nomeada com o
-`numero_processo` — o id dessa subpasta é o `Processos.drive_folder_id`.
+**Estrutura no Drive:** `Bússola de Processos — Documentos` /
+`Processos` / `<numero_processo>` — o id dessa última pasta é o
+`Processos.drive_folder_id`. O id da pasta `Processos` fica em cache
+nas Propriedades do Script (não é buscado por nome no Drive a cada
+upload — ver nota abaixo sobre por quê).
+
+> **Nota sobre buscar por nome no Drive:** a indexação de busca do
+> Drive tem atraso — uma pasta recém-criada pode não aparecer numa
+> busca por nome feita logo em seguida. Isso já causou pasta duplicada
+> em uploads seguidos rápido pro mesmo processo. A correção:
+> `obterPastaProcessosRaiz` ([Arquivo.gs](Arquivo.gs)) guarda o id da
+> pasta `Processos` nas Propriedades do Script assim que ela é criada
+> (com `LockService` pra evitar duas criações simultâneas), e
+> `obterOuCriarPastaProcesso` usa o `drive_folder_id` já salvo em
+> `Processos` (busca por id, sempre confiável) em vez de buscar por
+> nome sempre que o processo já é conhecido — a busca por nome só
+> acontece mesmo na primeira vez que cada pasta é criada.
+>
+> **Nota sobre `numero_processo` "parecer número":** o Google Sheets
+> converte sozinho uma string que parece número (ex.: `"45"`) pra
+> número de verdade ao salvar a célula. Comparar com `===` puro contra
+> o valor recebido na requisição (que é sempre string) nunca bate — foi
+> a causa de uploads duplicados não serem detectados/versionados.
+> `buscarLinhaPorColuna` ([Planilha.gs](Planilha.gs)) e a checagem de
+> duplicata em `proximoNomeDisponivel` ([Arquivo.gs](Arquivo.gs))
+> convertem os dois lados pra `String(...)` antes de comparar,
+> exatamente por causa disso.
 
 ### TiposProcesso
 

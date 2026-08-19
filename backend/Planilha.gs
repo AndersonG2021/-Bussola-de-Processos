@@ -70,9 +70,18 @@ function inserirLinhasSeVazia(aba, linhas) {
 
 /**
  * Busca a primeira linha de uma aba cujo valor na coluna informada bate
- * (comparação estrita ===) com `valor`. Usada por Auth.gs para achar
- * usuário por login e sessão por token, mas serve pra qualquer busca
- * simples por igualdade em qualquer aba.
+ * com `valor`. Usada por Auth.gs para achar usuário por login e sessão
+ * por token, e por Arquivo.gs para achar processo/documento — mas
+ * serve pra qualquer busca simples por igualdade em qualquer aba.
+ *
+ * A comparação é feita convertendo os dois lados pra String antes de
+ * comparar (não é `===` puro) DE PROPÓSITO: o Google Sheets converte
+ * sozinho uma string "que parece número" (ex.: um numero_processo tipo
+ * "45") pra número de verdade ao salvar a célula. Sem essa conversão,
+ * `45` (vindo da planilha) nunca bateria com `"45"` (vindo da
+ * requisição) — foi exatamente isso que causava o Prompt 4 não
+ * detectar upload duplicado (nunca achava o processo/arquivo já
+ * existente).
  *
  * @param {string} nomeAba
  * @param {string} nomeColuna  Precisa bater com um nome de coluna do cabeçalho (linha 1).
@@ -80,8 +89,9 @@ function inserirLinhasSeVazia(aba, linhas) {
  * @returns {{linha: number, valores: Object}|null}
  *   `linha` é o número da linha na planilha (1-indexado, útil pra um
  *   futuro update). `valores` é um objeto {nomeColuna: valor} com a
- *   linha inteira. null se a aba não existir, a coluna não existir, ou
- *   nenhuma linha bater.
+ *   linha inteira (com os tipos originais da planilha, sem conversão —
+ *   a conversão pra String vale só para a comparação). null se a aba
+ *   não existir, a coluna não existir, ou nenhuma linha bater.
  */
 function buscarLinhaPorColuna(nomeAba, nomeColuna, valor) {
   const aba = obterPlanilha().getSheetByName(nomeAba);
@@ -92,8 +102,9 @@ function buscarLinhaPorColuna(nomeAba, nomeColuna, valor) {
   const indiceColuna = cabecalho.indexOf(nomeColuna);
   if (indiceColuna === -1) return null;
 
+  const valorComparavel = String(valor);
   for (let i = 1; i < dados.length; i++) {
-    if (dados[i][indiceColuna] === valor) {
+    if (String(dados[i][indiceColuna]) === valorComparavel) {
       const valores = {};
       cabecalho.forEach((coluna, indice) => { valores[coluna] = dados[i][indice]; });
       return { linha: i + 1, valores: valores };

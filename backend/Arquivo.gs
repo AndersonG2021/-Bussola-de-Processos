@@ -1,9 +1,10 @@
 /**
  * Arquivo.gs — upload de documentos do processo para o Google Drive.
  *
- * Estrutura no Drive: uma pasta raiz (NOME_PASTA_RAIZ) contendo uma
- * subpasta por processo, nomeada com o número do processo. O id dessa
- * subpasta fica salvo em Processos.drive_folder_id.
+ * Estrutura no Drive: NOME_PASTA_RAIZ / NOME_SUBPASTA_PROCESSOS /
+ * <numero_processo> — ex.: "Bússola de Processos — Documentos" /
+ * "Processos" / "45". O id da subpasta do processo fica salvo em
+ * Processos.drive_folder_id.
  *
  * Nome de arquivo duplicado (mesmo numero_processo + nome_arquivo já
  * registrado em DocumentosProcesso) → DECISÃO: VERSIONA, não
@@ -13,10 +14,25 @@
  * importa para auditoria — sobrescrever silenciosamente perderia a
  * versão anterior, e um nome de arquivo um pouco mais longo é um preço
  * pequeno por isso.
+ *
+ * Sobre buscar pasta/arquivo por NOME no Drive: a indexação de busca
+ * do Drive tem atraso (não é instantânea após criar) — buscar por
+ * nome a cada upload já causou pasta duplicada em uploads seguidos
+ * rápido pro mesmo processo. Por isso a pasta raiz/Processos fica em
+ * cache nas Propriedades do Script (id, não nome) e a pasta de cada
+ * processo é resolvida pelo drive_folder_id já salvo em Processos
+ * (leitura de planilha é sempre consistente) sempre que possível —
+ * busca por nome só acontece na primeira vez que cada pasta existe.
  */
 
-/** Pasta no Drive que guarda todas as pastas de processo do app. */
+/** Pasta no Drive que guarda tudo do app. */
 const NOME_PASTA_RAIZ = 'Bússola de Processos — Documentos';
+
+/** Subpasta, dentro da raiz, que guarda uma pasta por processo. */
+const NOME_SUBPASTA_PROCESSOS = 'Processos';
+
+/** Chave nas Propriedades do Script onde fica o id da pasta "Processos" (cache). */
+const PROPRIEDADE_ID_PASTA_PROCESSOS = 'PASTA_PROCESSOS_ID';
 
 /** Mimetypes aceitos no upload — mantenha em sincronia com assets/js/upload.js no frontend. */
 const MIMETYPES_SUPORTADOS = ['application/pdf', 'text/html'];
@@ -117,23 +133,77 @@ function extensaoCondizComMimetype(nomeArquivo, mimetype) {
 }
 
 /**
+ * Pasta "Processos" dentro da pasta raiz do app — cria as duas se
+ * ainda não existirem. O id da pasta "Processos" fica em cache nas
+ * Propriedades do Script (PROPRIEDADE_ID_PASTA_PROCESSOS) pra não
+ * depender de busca por nome no Drive em toda chamada (ver comentário
+ * no topo do arquivo sobre atraso de indexação).
  * @returns {GoogleAppsScript.Drive.Folder}
  */
-function obterPastaRaiz() {
-  const pastas = DriveApp.getFoldersByName(NOME_PASTA_RAIZ);
-  if (pastas.hasNext()) return pastas.next();
-  return DriveApp.createFolder(NOME_PASTA_RAIZ);
+function obterPastaProcessosRaiz() {
+  const propriedades = PropertiesService.getScriptProperties();
+  const idCacheado = propriedades.getProperty(PROPRIEDADE_ID_PASTA_PROCESSOS);
+
+  if (idCacheado) {
+    try {
+      return DriveApp.getFolderById(idCacheado);
+    } catch (erroPastaSumiu) {
+      // A pasta foi apagada/movida manualmente fora do app — recria abaixo.
+    }
+  }
+
+  // Lock evita duas execuções quase simultâneas criando a pasta raiz em
+  // duplicidade — só importa na toda primeira vez, antes do id ficar
+  // em cache.
+  const bloqueio = LockService.getScriptLock();
+  bloqueio.waitLock(30000);
+  try {
+    const idCriadoEnquantoEsperava = propriedades.getProperty(PROPRIEDADE_ID_PASTA_PROCESSOS);
+    if (idCriadoEnquantoEsperava) {
+      return DriveApp.getFolderById(idCriadoEnquantoEsperava);
+    }
+
+    const pastaRaiz = obterOuCriarPastaFilha(DriveApp, NOME_PASTA_RAIZ);
+    const pastaProcessos = obterOuCriarPastaFilha(pastaRaiz, NOME_SUBPASTA_PROCESSOS);
+    propriedades.setProperty(PROPRIEDADE_ID_PASTA_PROCESSOS, pastaProcessos.getId());
+    return pastaProcessos;
+  } finally {
+    bloqueio.releaseLock();
+  }
 }
 
 /**
+ * @param {GoogleAppsScript.Drive.Folder|GoogleAppsScript.Drive.DriveApp} pai
+ * @param {string} nome
+ * @returns {GoogleAppsScript.Drive.Folder}
+ */
+function obterOuCriarPastaFilha(pai, nome) {
+  const pastas = pai.getFoldersByName(nome);
+  if (pastas.hasNext()) return pastas.next();
+  return pai.createFolder(nome);
+}
+
+/**
+ * Pasta do processo dentro de NOME_SUBPASTA_PROCESSOS. Se o processo
+ * já tiver um drive_folder_id salvo em Processos, usa ele direto
+ * (busca por id, sempre confiável) em vez de buscar por nome no Drive
+ * — só faz busca por nome (e cria, se não achar) na primeira vez que
+ * um numero_processo aparece.
  * @param {string} numeroProcesso
  * @returns {GoogleAppsScript.Drive.Folder}
  */
 function obterOuCriarPastaProcesso(numeroProcesso) {
-  const pastaRaiz = obterPastaRaiz();
-  const pastas = pastaRaiz.getFoldersByName(numeroProcesso);
-  if (pastas.hasNext()) return pastas.next();
-  return pastaRaiz.createFolder(numeroProcesso);
+  const processoExistente = buscarLinhaPorColuna('Processos', 'numero_processo', numeroProcesso);
+  if (processoExistente && processoExistente.valores.drive_folder_id) {
+    try {
+      return DriveApp.getFolderById(processoExistente.valores.drive_folder_id);
+    } catch (erroPastaSumiu) {
+      // A pasta foi apagada/movida manualmente fora do app — recria abaixo.
+    }
+  }
+
+  const pastaProcessos = obterPastaProcessosRaiz();
+  return obterOuCriarPastaFilha(pastaProcessos, numeroProcesso);
 }
 
 /**
@@ -177,9 +247,14 @@ function proximoNomeDisponivel(numeroProcesso, nomeArquivoOriginal) {
   const idxProcesso = cabecalho.indexOf('numero_processo');
   const idxNome = cabecalho.indexOf('nome_arquivo');
 
+  // String(...) dos dois lados de propósito — mesmo motivo do
+  // buscarLinhaPorColuna (Planilha.gs): o Sheets converte
+  // numero_processo "que parece número" pra número de verdade na
+  // célula, então comparar sem normalizar nunca bate.
+  const numeroProcessoComparavel = String(numeroProcesso);
   const nomesExistentes = new Set();
   for (let i = 1; i < dados.length; i++) {
-    if (dados[i][idxProcesso] === numeroProcesso) {
+    if (String(dados[i][idxProcesso]) === numeroProcessoComparavel) {
       nomesExistentes.add(dados[i][idxNome]);
     }
   }
