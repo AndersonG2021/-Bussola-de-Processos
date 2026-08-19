@@ -6,30 +6,41 @@
  * (Google Sheets) e o Drive; nada disso é exposto diretamente ao
  * frontend — tudo passa pelo Router.gs.
  *
- * STUB: nesta etapa só existe o encaminhamento para o Router; nenhuma
- * regra de negócio foi implementada ainda.
+ * Contrato da API (ver backend/ESQUEMA.md para detalhes):
+ *   - POST: corpo JSON { action, token, payload } → despachado por
+ *     rotearRequisicaoPost em Router.gs.
+ *   - GET: só aceita ?action=ping (healthcheck) → rotearRequisicaoGet.
+ *
+ * STUB: só a action "ping" está implementada; as demais entram conforme
+ * as telas forem construídas.
  */
 
 /**
- * GET é usado apenas para verificação manual (ex.: abrir a URL do Web
- * App no navegador). As operações reais do app usam POST.
  * @param {GoogleAppsScript.Events.DoGet} e
  * @returns {GoogleAppsScript.Content.TextOutput}
  */
 function doGet(e) {
-  return responderJson({ ok: true, data: { status: 'Bússola de Processos — backend ativo' } });
+  const parametros = (e && e.parameter) || {};
+  return responderJson(rotearRequisicaoGet(parametros));
 }
 
 /**
- * Único ponto de entrada usado pelo frontend (via chamarBackend em
- * assets/js/api.js). Espera um corpo JSON: { action, payload, token }.
+ * Único ponto de entrada de escrita/ação usado pelo frontend (via
+ * chamarBackend em assets/js/api.js). Espera um corpo JSON:
+ * { action, payload, token }.
+ *
+ * O corpo chega como text/plain (não application/json) de propósito —
+ * ver o comentário em assets/js/api.js e ESQUEMA.md: isso evita que o
+ * navegador dispare um preflight OPTIONS, que o Apps Script não sabe
+ * responder. Por isso o parse é manual aqui.
+ *
  * @param {GoogleAppsScript.Events.DoPost} e
  * @returns {GoogleAppsScript.Content.TextOutput}
  */
 function doPost(e) {
   try {
-    const requisicao = JSON.parse(e.postData.contents || '{}');
-    return responderJson(rotearRequisicao(requisicao));
+    const requisicao = JSON.parse((e.postData && e.postData.contents) || '{}');
+    return responderJson(rotearRequisicaoPost(requisicao));
   } catch (erro) {
     return responderJson({ ok: false, erro: erro.message || String(erro) });
   }

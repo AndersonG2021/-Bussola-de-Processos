@@ -39,19 +39,24 @@ frontend/
 backend/
   appsscript.json           manifest do Apps Script (timezone America/Fortaleza)
   .clasp.json.example       modelo de config do clasp (copiar para .clasp.json)
-  Principal.gs               doGet / doPost — pontos de entrada do Web App
-  Router.gs                   despacha cada `action` recebida para a função certa
-  Auth.gs                     autenticação e validação de sessão (stub)
-  Planilha.gs                  acesso ao Google Sheets (stub)
-  Arquivo.gs                    acesso ao Google Drive (stub)
-  Utilitarios.gs                 funções auxiliares (stub)
+  ESQUEMA.md                 abas da planilha (colunas) e contrato da API — ver backend/ESQUEMA.md
+  Principal.gs                doGet / doPost — pontos de entrada do Web App
+  Router.gs                    despacha cada `action` recebida para a função certa
+  Auth.gs                       autenticação e validação de sessão (stub)
+  Planilha.gs                    acesso genérico ao Google Sheets (obter/criar aba, inserir linhas)
+  Seed.gs                         seedBaseDeRegras() — popula a planilha com a base de regras
+  Arquivo.gs                       acesso ao Google Drive (stub)
+  Utilitarios.gs                    funções auxiliares (stub)
 
 README.md
 .gitignore
 ```
 
-Nesta etapa inicial não há regra de negócio implementada — só a estrutura,
-o layout base e uma tela de login que ainda não autentica ninguém.
+O contrato da API (ações POST/GET, formato de request/response) e o
+esquema completo de colunas de cada aba estão documentados em
+[backend/ESQUEMA.md](backend/ESQUEMA.md). Fora a action `ping`
+(healthcheck) e a criação/seed das abas, ainda não há regra de negócio
+implementada — a tela de login segue sem autenticar ninguém.
 
 ## Rodando o frontend localmente
 
