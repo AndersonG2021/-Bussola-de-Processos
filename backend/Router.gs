@@ -25,6 +25,9 @@ const ACOES_POST = {
   login: acaoLogin,
   meuPerfil: acaoMeuPerfil,
   uploadDocumento: acaoUploadDocumento,
+  identificarTipo: acaoIdentificarTipo,
+  confirmarIdentificacaoManual: acaoConfirmarIdentificacaoManual,
+  listarSubtiposPleito: acaoListarSubtiposPleito,
   // Próximas ações (protegidas por padrão): registrem aqui.
 };
 

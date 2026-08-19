@@ -347,3 +347,38 @@ function garantirProcesso(numeroProcesso, driveFolderId) {
     atualizado_em: agora,
   });
 }
+
+/**
+ * Concatena o texto extraído (ver ESQUEMA.md, seção "Texto extraído
+ * dos documentos") de todos os documentos de um processo que tiveram
+ * extração bem-sucedida — usado por Identificacao.gs (Prompt 6) e
+ * pelas próximas funcionalidades de reconhecimento de padrões, pra não
+ * cada uma reimplementar a leitura dos .txt do Drive.
+ * @param {string} numeroProcesso
+ * @returns {string}  Textos dos documentos separados por linha em branco dupla. Vazio se nenhum documento tem texto extraído.
+ */
+function obterTextoCompletoProcesso(numeroProcesso) {
+  const aba = obterOuCriarAba('DocumentosProcesso', ESQUEMA_ABAS.DocumentosProcesso);
+  const dados = aba.getDataRange().getValues();
+  const cabecalho = dados[0];
+  const idxProcesso = cabecalho.indexOf('numero_processo');
+  const idxTextoOk = cabecalho.indexOf('texto_extraido_ok');
+  const idxTextoFileId = cabecalho.indexOf('texto_extraido_drive_file_id');
+
+  const numeroProcessoComparavel = String(numeroProcesso);
+  const textos = [];
+  for (let i = 1; i < dados.length; i++) {
+    if (String(dados[i][idxProcesso]) !== numeroProcessoComparavel) continue;
+    if (!dados[i][idxTextoOk]) continue;
+
+    const fileId = dados[i][idxTextoFileId];
+    if (!fileId) continue;
+
+    try {
+      textos.push(DriveApp.getFileById(fileId).getBlob().getDataAsString());
+    } catch (erroArquivoSumiu) {
+      // .txt foi apagado/movido manualmente fora do app — ignora esse documento.
+    }
+  }
+  return textos.join('\n\n');
+}

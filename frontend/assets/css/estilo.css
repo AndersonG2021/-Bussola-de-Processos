@@ -291,6 +291,79 @@ body {
   font-size: 0.9rem;
 }
 
+/* Identificação automática de tipo/subtipo (Prompt 6) */
+.secao-identificacao {
+  margin-top: 1.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--cor-borda);
+}
+
+.secao-identificacao h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+  color: var(--cor-primaria);
+}
+
+.identificacao__carregando {
+  color: var(--cor-texto-suave);
+  font-size: 0.9rem;
+}
+
+.identificacao__palpite {
+  font-size: 0.95rem;
+  margin: 0 0 0.6rem;
+}
+
+.identificacao__confianca {
+  color: var(--cor-texto-suave);
+  font-size: 0.85rem;
+}
+
+.identificacao__dispensa {
+  background: var(--cor-aviso-fundo);
+  color: var(--cor-aviso);
+  border-radius: var(--raio);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+  margin: 0 0 0.75rem;
+}
+
+.identificacao__aviso {
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+}
+
+.identificacao__aviso--alta {
+  color: var(--cor-sucesso);
+}
+
+.identificacao__aviso--baixa {
+  color: var(--cor-aviso);
+}
+
+.identificacao__seletor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 420px;
+}
+
+.identificacao__seletor select {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.identificacao__concluido {
+  color: var(--cor-sucesso);
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin: 0 0 0.4rem;
+}
+
 /* Tela de login */
 .tela-login {
   min-height: 100vh;

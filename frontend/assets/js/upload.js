@@ -7,8 +7,9 @@
  * falhar/repetir independente dos outros (ver acaoUploadDocumento em
  * backend/Arquivo.gs).
  *
- * Depende de config.js, api.js, sessao.js e extracaoTexto.js (extrai o
- * texto do arquivo antes de enviar — Prompt 5).
+ * Depende de config.js, api.js, sessao.js, extracaoTexto.js (extrai o
+ * texto do arquivo antes de enviar — Prompt 5) e identificacao.js
+ * (identifica o tipo do processo ao final do lote — Prompt 6).
  */
 
 // Mantenha em sincronia com MIMETYPES_SUPORTADOS / TAMANHO_MAXIMO_ARQUIVO_BYTES em backend/Arquivo.gs.
@@ -74,6 +75,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
     atualizarResumo();
     botaoEnviar.disabled = false;
+    dispararIdentificacaoSeHouveSucesso(numeroProcesso);
+  }
+
+  /**
+   * Roda a identificação automática de tipo (Prompt 6) assim que pelo
+   * menos um arquivo do lote tiver subido — chamada ao final do lote
+   * principal e também depois de um "Tentar novamente" bem-sucedido
+   * (caso esse retry seja o primeiro sucesso do lote).
+   * @param {string} numeroProcesso
+   */
+  function dispararIdentificacaoSeHouveSucesso(numeroProcesso) {
+    const houveSucesso = itensUpload.some(function (i) {
+      return i.situacao === 'sucesso' || i.situacao === 'sucesso-sem-texto';
+    });
+    if (houveSucesso && typeof iniciarIdentificacaoTipo === 'function') {
+      iniciarIdentificacaoTipo(numeroProcesso);
+    }
   }
 
   function criarItemUpload(arquivo) {
@@ -128,7 +146,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // pendentes) ficam como estão.
     botaoRetry.addEventListener('click', function () {
       const numeroProcessoAtual = campoNumeroProcesso.value.trim();
-      enviarItem(item, numeroProcessoAtual).then(atualizarResumo);
+      enviarItem(item, numeroProcessoAtual).then(function () {
+        atualizarResumo();
+        dispararIdentificacaoSeHouveSucesso(numeroProcessoAtual);
+      });
     });
 
     return item;

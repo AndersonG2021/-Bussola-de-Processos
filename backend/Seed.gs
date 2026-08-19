@@ -39,12 +39,20 @@ const ESQUEMA_ABAS = {
     'texto_extraido_drive_file_id', 'hash_texto_extraido',
   ],
   TiposProcesso: ['nome_tipo', 'descricao'],
-  SubtiposPleito: ['subtipo', 'tipo_processo', 'checklist_associado'],
+  SubtiposPleito: ['subtipo', 'tipo_processo', 'checklist_associado', 'palavras_chave'],
   ChecklistTA: ['etapa_ordem', 'nome_etapa', 'documentos_esperados', 'palavras_chave', 'setor_responsavel', 'obrigatorio'],
   ChecklistRestituicao: ['etapa_ordem', 'nome_etapa', 'documentos_esperados', 'palavras_chave', 'setor_responsavel', 'obrigatorio'],
   ChecklistTC: ['etapa_ordem', 'nome_etapa', 'documentos_esperados', 'palavras_chave', 'setor_responsavel', 'obrigatorio'],
   AtribuicoesSetor: ['sigla', 'nome_setor', 'descricao'],
   RegrasEspeciais: ['nome_regra', 'valor', 'descricao'],
+  // Resultado da identificação automática (Prompt 6) — rascunho por
+  // processo, NÃO é a versão final do histórico (isso é
+  // AnalisesHistorico, escrita pela Funcionalidade 6). Uma linha por
+  // numero_processo, sobrescrita a cada nova identificação/confirmação.
+  RascunhoIdentificacao: [
+    'numero_processo', 'tipo_processo', 'subtipo_pleito', 'confianca', 'origem',
+    'dispensa_ta_json', 'candidatos_json', 'identificado_por', 'identificado_em',
+  ],
 };
 
 /**
@@ -163,38 +171,60 @@ const ETAPAS_RESTITUICAO_DEFICIT = [
  * "Repactuação Financeira" (Prompt 2) vs "Repactuação Financeira
  * (Meta)" (documento).
  */
+/**
+ * Coluna palavras_chave (Prompt 6) — usada por Identificacao.gs pra
+ * calcular a pontuação de confiança de cada subtipo (nº de padrões
+ * encontrados no texto / total de padrões esperados). Todo subtipo
+ * sempre tem pelo menos o próprio nome (normalizado) como padrão. Nos
+ * 6 subtipos com checklist detalhado no documento-fonte (seções 11.1 a
+ * 11.5 e a menção a prorrogação da seção 10 de
+ * "Fluxo dos Termos Aditivos (Antigo).odt") também entram termos
+ * adicionais tirados de lá (o órgão que valida cada tipo de pleito é
+ * um sinal bem discriminante). Os demais subtipos não têm conteúdo
+ * detalhado nenhum na fonte — ficam só com o nome, de propósito, pra
+ * não inventar critério de reconhecimento sem lastro.
+ */
 const SUBTIPOS_PLEITO = [
   // --- Termo Aditivo: definidos no Prompt 2 (PE Acessível e Operação
   // de Crédito agora resolvidos para ChecklistTA, conforme a tabela do
   // documento-fonte) ---
-  ['Aquisição de Bens', 'Termo Aditivo', 'ChecklistTA'],
-  ['Obras', 'Termo Aditivo', 'ChecklistTA'],
-  ['Ajuste de Metas/Serviços Assistenciais', 'Termo Aditivo', 'ChecklistTA'],
-  ['Repactuação Financeira', 'Termo Aditivo', 'ChecklistTA'],
-  ['Emendas Parlamentares', 'Termo Aditivo', 'ChecklistTA'],
-  ['Prorrogação', 'Termo Aditivo', 'ChecklistTA'],
-  ['PE Acessível', 'Termo Aditivo', 'ChecklistTA'],
-  ['Operação de Crédito', 'Termo Aditivo', 'ChecklistTA'],
+  ['Aquisição de Bens', 'Termo Aditivo', 'ChecklistTA',
+    'aquisição de bens, aquisição de bem, compra de bens, GACDE, RENEM'],
+  ['Obras', 'Termo Aditivo', 'ChecklistTA',
+    'obras, obra, reforma, reformas, laudo de engenharia civil, DGI'],
+  ['Ajuste de Metas/Serviços Assistenciais', 'Termo Aditivo', 'ChecklistTA',
+    'ajuste de metas, ajuste assistencial, nota técnica assistencial, NTA, SEAS'],
+  ['Repactuação Financeira', 'Termo Aditivo', 'ChecklistTA',
+    'repactuação financeira, recomposição financeira, negociação financeira, nota técnica financeira, GAVFCG'],
+  ['Emendas Parlamentares', 'Termo Aditivo', 'ChecklistTA',
+    'emenda parlamentar, emendas parlamentares, plano de trabalho, mapa de cotações, NUGEP, GCON'],
+  ['Prorrogação', 'Termo Aditivo', 'ChecklistTA',
+    'prorrogação, prorrogação contratual, prazo de vigência'],
+  ['PE Acessível', 'Termo Aditivo', 'ChecklistTA', 'PE Acessível, pe acessivel'],
+  ['Operação de Crédito', 'Termo Aditivo', 'ChecklistTA', 'operação de crédito, operacao de credito'],
   // --- Termo Aditivo: adicionados a partir da tabela do documento ---
-  ['Ajuste Contratual', 'Termo Aditivo', 'ChecklistTA'],
-  ['Alteração de Perfil', 'Termo Aditivo', 'ChecklistTA'],
-  ['Ampliação de Leitos', 'Termo Aditivo', 'ChecklistTA'],
-  ['Ampliação Serviços', 'Termo Aditivo', 'ChecklistTA'],
-  ['Aquisições Não Patrimoniais', 'Termo Aditivo', 'ChecklistTA'],
-  ['Emenda Custeio', 'Termo Aditivo', 'ChecklistTA'],
-  ['Emenda Investimento', 'Termo Aditivo', 'ChecklistTA'],
-  ['Programas / Políticas', 'Termo Aditivo', 'ChecklistTA'],
-  ['Rateio', 'Termo Aditivo', 'ChecklistTA'],
-  ['Obra', 'Termo Aditivo', 'ChecklistTA'],
-  ['Renegociação', 'Termo Aditivo', 'ChecklistTA'],
-  ['Sazonalidade', 'Termo Aditivo', 'ChecklistTA'],
-  ['Recomposição de Provisão', 'Termo Aditivo', 'ChecklistTA'],
-  ['Repactuação de Meta', 'Termo Aditivo', 'ChecklistTA'],
-  ['Renegociação de Termo Aditivo', 'Termo Aditivo', 'ChecklistTA'],
-  ['Repactuação Financeira (Meta)', 'Termo Aditivo', 'ChecklistTA'],
+  // (sem conteúdo detalhado na fonte — só o nome, ver comentário acima)
+  ['Ajuste Contratual', 'Termo Aditivo', 'ChecklistTA', 'ajuste contratual'],
+  ['Alteração de Perfil', 'Termo Aditivo', 'ChecklistTA', 'alteração de perfil, alteracao de perfil'],
+  ['Ampliação de Leitos', 'Termo Aditivo', 'ChecklistTA', 'ampliação de leitos, ampliacao de leitos'],
+  ['Ampliação Serviços', 'Termo Aditivo', 'ChecklistTA', 'ampliação de serviços, ampliação serviços'],
+  ['Aquisições Não Patrimoniais', 'Termo Aditivo', 'ChecklistTA', 'aquisições não patrimoniais, aquisição não patrimonial'],
+  ['Emenda Custeio', 'Termo Aditivo', 'ChecklistTA', 'emenda custeio, emenda de custeio'],
+  ['Emenda Investimento', 'Termo Aditivo', 'ChecklistTA', 'emenda investimento, emenda de investimento'],
+  ['Programas / Políticas', 'Termo Aditivo', 'ChecklistTA', 'programas, políticas, programas / políticas'],
+  ['Rateio', 'Termo Aditivo', 'ChecklistTA', 'rateio'],
+  ['Obra', 'Termo Aditivo', 'ChecklistTA', 'obra, obras'],
+  ['Renegociação', 'Termo Aditivo', 'ChecklistTA', 'renegociação, renegociacao'],
+  ['Sazonalidade', 'Termo Aditivo', 'ChecklistTA', 'sazonalidade, sazonal'],
+  ['Recomposição de Provisão', 'Termo Aditivo', 'ChecklistTA', 'recomposição de provisão, recomposicao de provisao'],
+  ['Repactuação de Meta', 'Termo Aditivo', 'ChecklistTA', 'repactuação de meta, repactuacao de meta'],
+  ['Renegociação de Termo Aditivo', 'Termo Aditivo', 'ChecklistTA', 'renegociação de termo aditivo, renegociação do termo aditivo'],
+  ['Repactuação Financeira (Meta)', 'Termo Aditivo', 'ChecklistTA', 'repactuação financeira (meta), repactuação financeira meta'],
   // --- Termo de Compromisso: checklist ainda pendente (ChecklistTC vazio) ---
-  ['Termo de Compromisso (Operacionalização)', 'Termo de Compromisso', 'ChecklistTC'],
-  ['Termo de Compromisso (Pagamento)', 'Termo de Compromisso', 'ChecklistTC'],
+  ['Termo de Compromisso (Operacionalização)', 'Termo de Compromisso', 'ChecklistTC',
+    'termo de compromisso, operacionalização, termo de compromisso (operacionalização)'],
+  ['Termo de Compromisso (Pagamento)', 'Termo de Compromisso', 'ChecklistTC',
+    'termo de compromisso, pagamento, termo de compromisso (pagamento)'],
 ];
 
 /**
@@ -311,6 +341,7 @@ function seedBaseDeRegras() {
   obterOuCriarAba('Processos', ESQUEMA_ABAS.Processos);
   obterOuCriarAba('AnalisesHistorico', ESQUEMA_ABAS.AnalisesHistorico);
   obterOuCriarAba('DocumentosProcesso', ESQUEMA_ABAS.DocumentosProcesso);
+  obterOuCriarAba('RascunhoIdentificacao', ESQUEMA_ABAS.RascunhoIdentificacao);
 
   Logger.log('seedBaseDeRegras concluído.');
 }

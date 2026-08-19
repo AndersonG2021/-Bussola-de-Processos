@@ -14,6 +14,7 @@ o roteamento da API está em [Router.gs](Router.gs) e [Principal.gs](Principal.g
 - [Contrato da API](#contrato-da-api)
 - [Por que `text/plain` em vez de `application/json`](#por-que-textplain-em-vez-de-applicationjson)
 - [TextoUtils.gs — utilitários de texto](#textoutilsgs--utilitários-de-texto)
+- [Identificação automática de tipo (Prompt 6)](#identificação-automática-de-tipo-prompt-6)
 
 ## Abas da planilha
 
@@ -82,6 +83,32 @@ Cada execução da análise de padrões sobre um processo gera uma linha aqui
 | `sintese_objetivo` | texto | Texto gerado: objetivo do processo. |
 | `sintese_historico` | texto | Texto gerado: histórico do processo. |
 | `sintese_proximo_passo` | texto | Texto gerado: próximo passo. |
+
+`AnalisesHistorico` ainda não é escrita por nenhuma action — é reservada
+pra Funcionalidade 6 (versão final/consolidada de uma análise). Até lá,
+o resultado da identificação automática (Prompt 6) fica em
+`RascunhoIdentificacao`, abaixo.
+
+### RascunhoIdentificacao
+
+Resultado (ainda não final) da identificação automática de tipo/subtipo
+(Prompt 6, action `identificarTipo`) — **uma linha por
+`numero_processo`**, sobrescrita a cada nova identificação ou
+confirmação manual. Não é histórico acumulativo — é o "rascunho atual".
+Vira de fato histórico só quando a Funcionalidade 6 gravar a versão
+final em `AnalisesHistorico`.
+
+| Coluna | Tipo/formato | Observações |
+|---|---|---|
+| `numero_processo` | texto | Referencia `Processos.numero_processo`. Chave da linha (uma por processo). |
+| `tipo_processo` | texto | Vazio se `origem = "nao-reconhecido"`. |
+| `subtipo_pleito` | texto | Idem. |
+| `confianca` | número (0–1) | `1` quando `origem = "manual"` (confirmação humana). |
+| `origem` | texto | `automatico-alta-confianca`, `automatico-baixa-confianca`, `manual`, ou `nao-reconhecido`. |
+| `dispensa_ta_json` | texto (JSON) | `{sinalizado, mensagem, teto, valores_encontrados}` da regra do teto de dispensa de TA, ou vazio. |
+| `candidatos_json` | texto (JSON) | Até 5 subtipos mais bem pontuados (mesmo quando o melhor não passou do limiar) — referência pra quem for revisar. |
+| `identificado_por` | texto | Nome do usuário da sessão, ou `"sistema"`. |
+| `identificado_em` | datetime ISO | |
 
 ### DocumentosProcesso
 
@@ -203,6 +230,7 @@ Mapeia cada subtipo de pleito ao tipo de processo e ao checklist que ele usa.
 | `subtipo` | texto |
 | `tipo_processo` | texto — referencia `TiposProcesso.nome_tipo` |
 | `checklist_associado` | texto — nome da aba de checklist, ou `"a confirmar"` |
+| `palavras_chave` | texto, separado por vírgula | Padrões usados por `identificarTipo` (Prompt 6) pra calcular a confiança desse subtipo. |
 
 Seed atual: 24 subtipos de **Termo Aditivo** (→ `ChecklistTA`) + 2 de
 **Termo de Compromisso** (→ `ChecklistTC`, ainda vazio). Fonte: os 8
@@ -218,6 +246,26 @@ documento-fonte as lista separadamente) — revisar se são o mesmo
 subtipo ou não: `Obras` (Prompt 2) vs `Obra` (documento), e
 `Repactuação Financeira` (Prompt 2) vs `Repactuação Financeira (Meta)`
 (documento).
+
+**`palavras_chave` (Prompt 6):** todo subtipo tem pelo menos o próprio
+nome (e variações de grafia) como padrão. Os 6 subtipos com checklist
+detalhado no documento-fonte (Aquisição de Bens, Obras, Ajuste de
+Metas/Serviços Assistenciais, Repactuação Financeira, Emendas
+Parlamentares, Prorrogação) também têm termos extras tirados de lá — o
+órgão que valida cada tipo de pleito (GACDE para bens, DGI para obras,
+NTA/SEAS para ajuste assistencial, GAVFCG para repactuação financeira,
+NUGEP/GCON para emendas) é um sinal discriminante real, citado no
+documento. **Os demais 18 subtipos não têm nenhum termo extra — só o
+nome —** porque a fonte não trouxe conteúdo detalhado pra eles; não
+inventei critério de reconhecimento sem lastro nenhum. Isso significa
+que, na prática, esses 18 só vão pontuar bem se o texto do documento
+mencionar o nome do subtipo quase literalmente.
+
+> ⚠️ **Se você já rodou `seedBaseDeRegras()` antes do Prompt 6**, a aba
+> `SubtiposPleito` já tem as 26 linhas de dados, e `inserirLinhasSeVazia`
+> não sobrescreve linha existente — a coluna `palavras_chave` nova fica
+> em branco pra todo mundo até você limpar as linhas de dados (mantendo
+> o cabeçalho) e rodar `seedBaseDeRegras()` de novo.
 
 ### ChecklistTA, ChecklistRestituicao, ChecklistTC
 
@@ -353,7 +401,10 @@ depender do texto de `erro` (que é só pra exibir). Hoje existem:
 | `ARQUIVO_VAZIO` | Upload de arquivo com 0 bytes | Idem |
 | `ARQUIVO_MUITO_GRANDE` | Upload maior que 20MB | Idem |
 | `ARQUIVO_INVALIDO` | Nome de arquivo ou base64 ausente/corrompido | Idem |
-| `PROCESSO_VAZIO` | `numero_processo` vazio no upload | Bloqueia o formulário antes de enviar (frontend também valida antes) |
+| `PROCESSO_VAZIO` | `numero_processo` vazio no upload ou na identificação | Bloqueia o formulário antes de enviar (frontend também valida antes) |
+| `PROCESSO_NAO_ENCONTRADO` | `identificarTipo` chamada pra um `numero_processo` sem nenhum documento enviado ainda | Não deveria acontecer no fluxo normal (upload sempre roda antes) — mostrado como erro genérico se acontecer |
+| `DADOS_INCOMPLETOS` | `confirmarIdentificacaoManual` sem `tipo_processo`/`subtipo_pleito` | Botão "Confirmar e prosseguir" só habilita com uma opção selecionada — não deveria acontecer |
+| `SUBTIPO_INVALIDO` | `confirmarIdentificacaoManual` com uma combinação tipo/subtipo que não existe em `SubtiposPleito` | Mostrado no seletor manual |
 
 `doPost` (em [Principal.gs](Principal.gs)) faz `JSON.parse` do corpo e
 chama `rotearRequisicaoPost` (em [Router.gs](Router.gs)), que despacha
@@ -374,6 +425,26 @@ Ações implementadas hoje:
 | `login` | sim | `{usuario, senha}` | `{token, perfil, nome}` |
 | `meuPerfil` | não | — | `{perfil, nome}` — confirma que o token ainda vale |
 | `uploadDocumento` | não | `{numero_processo, nome_arquivo, conteudo_base64, mimetype, texto_extraido?}` | `{id_documento, nome_arquivo, drive_file_id, renomeado, texto_extraido_ok}` — `nome_arquivo` pode vir diferente do enviado se houve versionamento (`renomeado: true`); `texto_extraido` é opcional (ver [Texto extraído dos documentos](#texto-extraído-dos-documentos-prompt-5)) |
+| `identificarTipo` | não | `{numero_processo}` | Ver [Identificação automática de tipo](#identificação-automática-de-tipo-prompt-6) — formato completo abaixo |
+| `confirmarIdentificacaoManual` | não | `{numero_processo, tipo_processo, subtipo_pleito}` | `{numero_processo, tipo_processo, subtipo_pleito}` — eco do que foi salvo |
+| `listarSubtiposPleito` | não | — | `{subtipos: [{subtipo, tipo_processo}, ...]}` — catálogo completo, pro dropdown de confirmação manual |
+
+`identificarTipo` devolve, quando `reconhecido: true`:
+```json
+{
+  "reconhecido": true,
+  "confianca_alta": true,
+  "tipo_processo": "Termo Aditivo",
+  "subtipo_pleito": "Aquisição de Bens",
+  "confianca": 0.8,
+  "palavras_encontradas": ["aquisição de bens", "GACDE"],
+  "total_palavras": 5,
+  "dispensa_ta": { "sinalizado": true, "mensagem": "...", "teto": 62725.59, "valores_encontrados": [45200] },
+  "candidatos": [ { "subtipo": "...", "tipoProcesso": "...", "confianca": 0.8, ... }, ... ]
+}
+```
+`dispensa_ta` é `null` quando a regra do teto não se aplica. Quando
+`reconhecido: false`, a resposta é `{reconhecido: false, motivo: "...", candidatos: [...]}`.
 
 Novas ações entram no mapa `ACOES_POST` conforme as telas forem
 construídas.
@@ -435,3 +506,52 @@ divergências) em vez de cada uma reimplementar a própria busca de texto:
   que preenche `DocumentosProcesso.hash_texto_extraido` no upload, e
   serve pra qualquer outra comparação "esse texto mudou desde a última
   vez?" que aparecer nas próximas funcionalidades.
+
+## Identificação automática de tipo (Prompt 6)
+
+[Identificacao.gs](Identificacao.gs) reconhece o tipo/subtipo de um
+processo por correspondência de padrões contra `SubtiposPleito` — sem
+IA generativa, é contagem de palavras-chave, igual ao resto do app.
+
+**Fórmula de confiança**, por subtipo: `(nº de padrões de
+palavras_chave encontrados no texto) / (total de padrões esperados
+para aquele subtipo)`. O texto usado é a concatenação dos `.txt`
+extraídos (Prompt 5) de todos os documentos do processo que tiveram
+extração bem-sucedida (`obterTextoCompletoProcesso`, em
+[Arquivo.gs](Arquivo.gs)) — documentos sem texto extraído não entram na
+conta.
+
+**Limiares** (`LIMIAR_CONFIANCA_AUTOMATICA` / `LIMIAR_CONFIANCA_MINIMA`
+em [Identificacao.gs](Identificacao.gs)):
+- **≥ 70%** — confiança alta, identificação automática (frontend mostra
+  o resultado com um botão "Prosseguir" já habilitado).
+- **30% a 70%** — confiança baixa: mostra o palpite, mas exige
+  confirmação manual do analista (dropdown com todos os
+  tipos/subtipos da base de regras) antes de liberar "Prosseguir".
+- **< 30%** (ou nenhum documento com texto extraído) — "tipo não
+  reconhecido pela base de regras": nenhum palpite é mostrado como
+  padrão, só o seletor manual.
+
+**Regra do teto de dispensa de TA** (`avaliarDispensaTA`): só é avaliada
+quando o subtipo com melhor pontuação é "Aquisição de Bens" — condições,
+**todas** precisam bater:
+1. O texto do processo contém a palavra "custeio" (aproxima "aquisição
+   de bem **via custeio**", a condição literal da regra).
+2. Um valor monetário no padrão brasileiro (`R$ 12.345,67`, via regex
+   em `extrairValoresMonetarios`) aparece no texto, abaixo do teto
+   cadastrado em `RegrasEspeciais` (`teto_dispensa_ta_aquisicao_bem_custeio`,
+   R$ 62.725,59 — ver [Abas da planilha](#abas-da-planilha)).
+
+Quando as duas batem, a resposta de `identificarTipo` inclui
+`dispensa_ta: {sinalizado: true, mensagem, teto, valores_encontrados}`.
+
+**Onde o resultado fica salvo:** `RascunhoIdentificacao` (ver
+[Abas da planilha](#abas-da-planilha)) — **não** em `AnalisesHistorico`,
+que é reservada pra versão final (Funcionalidade 6). Toda chamada a
+`identificarTipo` ou `confirmarIdentificacaoManual` sobrescreve a linha
+daquele `numero_processo` (não acumula).
+
+**Ações relacionadas** (ver [Contrato da API](#contrato-da-api)):
+`identificarTipo`, `confirmarIdentificacaoManual` (confirmação manual do
+analista quando a confiança é baixa ou nula) e `listarSubtiposPleito`
+(catálogo pro dropdown do frontend).
